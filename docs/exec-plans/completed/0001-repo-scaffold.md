@@ -2,9 +2,10 @@
 id: 0001
 slug: repo-scaffold
 title: Stand up initial repository scaffolding
-status: active
-owner: human
+status: completed
+owner: agent
 opened: 2026-04-24
+completed: 2026-04-24
 ---
 
 ## Goal
