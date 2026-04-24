@@ -11,9 +11,9 @@ lint:
 	$(MAKE) lint-custom
 
 # Custom lints that enforce invariants beyond what golangci-lint expresses.
-# See lint/README.md. Stubs until the relevant exec-plans land.
+# See lint/README.md.
 lint-custom:
-	@echo "lint-custom: no custom lints enabled yet (see lint/README.md)"
+	go run ./lint/payment-middleware-check --root .
 
 doc-lint:
 	@echo "doc-lint: placeholder until doc-gardener is wired in"

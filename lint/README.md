@@ -26,11 +26,15 @@ plus `providers/` accessible from all, and `service/modules/<name>/` subject to 
 
 Enforces core belief #3: every paid HTTP route passes through `runtime/http.RegisterPaidRoute`, never `Register` alone. This is the mechanical check that substitutes for "remember to validate payment" discipline.
 
-Inspection target: the call sites in `internal/runtime/http/register.go` (and anywhere else calling the HTTP mux's `Register*` methods). For each registered path matching a capability URI (`/v1/...`), assert the call uses `RegisterPaidRoute`.
+**Rule:** any call `<x>.Register(method, path, handler)` — three arguments, method name exactly `Register` — where `path` is a string literal starting with `/v1/` is flagged. `/v1/…` is the capability-route namespace per `docs/product-specs/index.md`; such paths MUST be reached via `RegisterPaidRoute`.
 
-**Status: unimplemented.** Placeholder. Targeted for a plan after 0003-payment-middleware lands the actual middleware; the lint has nothing to check until then.
+**Limitations:**
 
-**Tracked:** `tech-debt-tracker.md` entry `payment-middleware-check-impl`.
+- Non-literal paths (stored in a variable or const) are NOT flagged. If this becomes a hole, track it and extend the checker to resolve const expressions.
+- 2-arg `Register` forms (e.g. `net/http.ServeMux.Handle(pattern, handler)`) are skipped by signature — the lint only fires on 3-arg calls.
+- The `lint/` directory is skipped so the linter's own test fixtures don't re-feed themselves.
+
+**Status: delivered.** Runs in `make lint-custom` and in CI via `.github/workflows/lint.yml`. Self-tests at `lint/payment-middleware-check/check_test.go` include a regression guard that walks the real repo.
 
 ### no-raw-log
 

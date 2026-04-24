@@ -18,10 +18,10 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** Custom lint `lint/layer-check` is a README placeholder. Full AST-walking `go vet` analyzer deferred until the source tree has real code and the concrete import patterns are known.
 **Resolution target:** Unclaimed — now unblocked (0002 + 0003 landed real code). Targeted for a dedicated plan when a second module introduces the risk of cross-module imports.
 
-### payment-middleware-check-impl
+### ~~payment-middleware-check-impl~~ — resolved 2026-04-24
 **Opened:** 2026-04-24 (plan 0001)
 **Context:** Custom lint that verifies every capability-module registration passes through `runtime/http.RegisterPaidRoute`. Placeholder README in place. One paid module (chat) exists today; the lint needs a second module before its detection logic is meaningfully exercised.
-**Resolution target:** Unclaimed — fold into the plan that adds 0004-embeddings-module.
+**Resolved:** Implemented at `lint/payment-middleware-check/`. AST-walking Go program; flags `.Register(method, path, handler)` calls with a string-literal path starting with `/v1/`. Seven self-tests including a regression guard against the live repo. Wired into `make lint-custom`.
 
 ### quote-quotes-unpaid-routes
 **Opened:** 2026-04-24 (plan 0003)
