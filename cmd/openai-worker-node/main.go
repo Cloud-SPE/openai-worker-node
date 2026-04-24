@@ -31,6 +31,7 @@ import (
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/tokenizer"
 	rthttp "github.com/Cloud-SPE/openai-worker-node/internal/runtime/http"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules/chat_completions"
+	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules/embeddings"
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
 )
 
@@ -167,6 +168,14 @@ func registerModules(
 		switch entry.Capability {
 		case chat_completions.Capability:
 			mod := chat_completions.New(tok, backend)
+			mux.RegisterPaidRoute(mod)
+			logger.Info("capability registered",
+				"capability", mod.Capability(),
+				"path", mod.HTTPPath(),
+				"models", len(entry.Models))
+			registered++
+		case embeddings.Capability:
+			mod := embeddings.New(tok, backend)
 			mux.RegisterPaidRoute(mod)
 			logger.Info("capability registered",
 				"capability", mod.Capability(),
