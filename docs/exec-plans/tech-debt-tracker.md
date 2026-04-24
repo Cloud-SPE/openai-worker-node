@@ -23,10 +23,10 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** Custom lint that verifies every capability-module registration passes through `runtime/http.RegisterPaidRoute`. Placeholder README in place. One paid module (chat) exists today; the lint needs a second module before its detection logic is meaningfully exercised.
 **Resolved:** Implemented at `lint/payment-middleware-check/`. AST-walking Go program; flags `.Register(method, path, handler)` calls with a string-literal path starting with `/v1/`. Seven self-tests including a regression guard against the live repo. Wired into `make lint-custom`.
 
-### quote-quotes-unpaid-routes
+### ~~quote-quotes-unpaid-routes~~ — resolved 2026-04-24
 **Opened:** 2026-04-24 (plan 0003)
 **Context:** `GET /quote?sender=&capability=` and `GET /quotes?sender=` are part of the worker HTTP contract (`docs/product-specs/index.md`). Not implemented in 0003 because they need a new `GetQuote` method on the `payeedaemon.Client` provider and a corresponding fake method. Small scope but its own plan.
-**Resolution target:** Unclaimed — short follow-up plan.
+**Resolved:** `GetQuote` added to `payeedaemon.Client` (+ gRPC impl + Fake). `/quote` and `/quotes` handlers live in `internal/runtime/http/handlers.go`; both registered by `RegisterUnpaidHandlers`. Byte-fields rendered as `0x`-prefixed hex for bridge compatibility. 7 tests in `quote_test.go` covering happy/missing-sender/bad-sender/missing-capability/daemon-error + /quotes happy + fail-closed-on-any-error.
 
 ### concurrency-limiter
 **Opened:** 2026-04-24 (plan 0003)

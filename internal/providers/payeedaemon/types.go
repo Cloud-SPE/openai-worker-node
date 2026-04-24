@@ -60,3 +60,32 @@ type ModelPrice struct {
 	// parse is exact — no rounding, no scientific-notation drift.
 	PricePerWorkUnitWei string
 }
+
+// GetQuoteResult is the domain projection of
+// paymentsv1.GetQuoteResponse. TicketParams is passed through as
+// flat bytes-and-numbers so the HTTP handler can render it into the
+// JSON shape the bridge expects without touching proto types.
+type GetQuoteResult struct {
+	TicketParams TicketParams
+	ModelPrices  []ModelPrice
+}
+
+// TicketParams is the worker-side projection of the proto TicketParams.
+// Byte fields are passed through unchanged; the HTTP handler is the
+// only layer that renders them (as hex strings, per the bridge's
+// JSON schema).
+type TicketParams struct {
+	Recipient         []byte
+	FaceValueWei      []byte // big-endian
+	WinProb           []byte // big-endian
+	RecipientRandHash []byte
+	Seed              []byte
+	ExpirationBlock   []byte // big-endian
+	ExpirationParams  TicketExpirationParams
+}
+
+// TicketExpirationParams projects paymentsv1.TicketExpirationParams.
+type TicketExpirationParams struct {
+	CreationRound          int64
+	CreationRoundBlockHash []byte
+}

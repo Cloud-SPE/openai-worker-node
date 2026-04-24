@@ -4,12 +4,12 @@ The HTTP contract this worker exposes to `openai-livepeer-bridge`, and the gRPC 
 
 ## HTTP surface (this worker, for the bridge)
 
-| Method | Path | Paid? | Spec |
-|---|---|---|---|
-| `GET` | `/health` | no | `health.md` (planned) |
-| `GET` | `/capabilities` | no | `capabilities.md` (planned) |
-| `GET` | `/quote?sender=&capability=` | no | `quote.md` (planned) |
-| `GET` | `/quotes?sender=` | no | `quote.md` (planned) |
+| Method | Path | Paid? | Status | Spec |
+|---|---|---|---|---|
+| `GET` | `/health` | no | live | inline below |
+| `GET` | `/capabilities` | no | live | inline below |
+| `GET` | `/quote?sender=&capability=` | no | live | inline below |
+| `GET` | `/quotes?sender=` | no | live | inline below |
 | `POST` | `/v1/chat/completions` | yes | `chat_completions.md` (planned) |
 | `POST` | `/v1/embeddings` | yes | `embeddings.md` (planned) |
 | `POST` | `/v1/images/generations` | yes | `images.md` (planned) |

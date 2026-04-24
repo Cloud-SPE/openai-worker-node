@@ -26,15 +26,20 @@ type Fake struct {
 	DebitBalanceError         error
 	ListCapabilitiesResponse  ListCapabilitiesResult
 	ListCapabilitiesError     error
+	GetQuoteResponse          GetQuoteResult
+	GetQuoteError             error
 	CreditPerCall             *big.Int
 	DebitWeiPerWorkUnit       *big.Int
 	SenderAddress             []byte
 	ProcessPaymentCalls       int
 	DebitBalanceCalls         int
+	GetQuoteCalls             int
 	LastProcessPaymentPayload []byte
 	LastDebitBalanceWorkUnits int64
 	LastProcessPaymentWorkID  string
 	LastDebitBalanceWorkID    string
+	LastGetQuoteSender        []byte
+	LastGetQuoteCapability    string
 
 	// balances tracks (sender, work_id) → running balance so the fake
 	// stays consistent across calls (e.g. insufficient-balance tests).
@@ -60,6 +65,18 @@ func (f *Fake) ListCapabilities(_ context.Context) (ListCapabilitiesResult, erro
 		return ListCapabilitiesResult{}, f.ListCapabilitiesError
 	}
 	return f.ListCapabilitiesResponse, nil
+}
+
+func (f *Fake) GetQuote(_ context.Context, sender []byte, capability string) (GetQuoteResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.GetQuoteCalls++
+	f.LastGetQuoteSender = append([]byte(nil), sender...)
+	f.LastGetQuoteCapability = capability
+	if f.GetQuoteError != nil {
+		return GetQuoteResult{}, f.GetQuoteError
+	}
+	return f.GetQuoteResponse, nil
 }
 
 func (f *Fake) ProcessPayment(_ context.Context, paymentBytes []byte, workID string) (ProcessPaymentResult, error) {

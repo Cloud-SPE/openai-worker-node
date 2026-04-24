@@ -19,6 +19,13 @@ type Client interface {
 	// own shared-YAML parse doesn't byte-match this response.
 	ListCapabilities(ctx context.Context) (ListCapabilitiesResult, error)
 
+	// GetQuote returns the daemon's TicketParams + per-model prices
+	// for a (sender, capability) pair. The worker's /quote and
+	// /quotes HTTP handlers proxy this call through to the bridge so
+	// the bridge can refresh its quote cache. NotFound is expected
+	// when the operator hasn't configured `capability`.
+	GetQuote(ctx context.Context, sender []byte, capability string) (GetQuoteResult, error)
+
 	// ProcessPayment validates a payment blob and credits the sender's
 	// balance. The workID identifies the session the credit posts to;
 	// typically the worker derives it from the payment (e.g. the

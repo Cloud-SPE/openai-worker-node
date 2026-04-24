@@ -86,6 +86,39 @@ func (c *grpcClient) ProcessPayment(ctx context.Context, paymentBytes []byte, wo
 	}, nil
 }
 
+func (c *grpcClient) GetQuote(ctx context.Context, sender []byte, capability string) (GetQuoteResult, error) {
+	resp, err := c.client.GetQuote(ctx, &paymentsv1.GetQuoteRequest{
+		Sender:     sender,
+		Capability: capability,
+	})
+	if err != nil {
+		return GetQuoteResult{}, fmt.Errorf("payeedaemon: GetQuote: %w", err)
+	}
+	tp := resp.GetTicketParams()
+	out := GetQuoteResult{
+		TicketParams: TicketParams{
+			Recipient:         tp.GetRecipient(),
+			FaceValueWei:      tp.GetFaceValue(),
+			WinProb:           tp.GetWinProb(),
+			RecipientRandHash: tp.GetRecipientRandHash(),
+			Seed:              tp.GetSeed(),
+			ExpirationBlock:   tp.GetExpirationBlock(),
+			ExpirationParams: TicketExpirationParams{
+				CreationRound:          tp.GetExpirationParams().GetCreationRound(),
+				CreationRoundBlockHash: tp.GetExpirationParams().GetCreationRoundBlockHash(),
+			},
+		},
+		ModelPrices: make([]ModelPrice, 0, len(resp.GetModelPrices())),
+	}
+	for _, m := range resp.GetModelPrices() {
+		out.ModelPrices = append(out.ModelPrices, ModelPrice{
+			Model:               m.GetModel(),
+			PricePerWorkUnitWei: priceInfoToWeiString(m.GetPriceInfo()),
+		})
+	}
+	return out, nil
+}
+
 func (c *grpcClient) DebitBalance(ctx context.Context, sender []byte, workID string, workUnits int64) (DebitBalanceResult, error) {
 	resp, err := c.client.DebitBalance(ctx, &paymentsv1.DebitBalanceRequest{
 		Sender:    sender,
