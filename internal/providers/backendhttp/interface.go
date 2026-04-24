@@ -9,16 +9,23 @@ import (
 // The worker's runtime/http layer never calls these directly — only
 // capability modules do, inside Serve.
 type Client interface {
-	// DoJSON posts body to url and returns the buffered response body
-	// along with its status code. Used by non-streaming capabilities
-	// (chat when stream=false, embeddings, image generation, TTS when
-	// non-streaming, ASR).
+	// DoJSON posts body to url with Content-Type: application/json
+	// and returns the buffered response body along with its status
+	// code. Used by non-streaming JSON capabilities (chat when
+	// stream=false, embeddings, image generation).
 	DoJSON(ctx context.Context, url string, body []byte) (status int, respBody []byte, err error)
 
-	// DoStream posts body to url with Accept: text/event-stream and
-	// returns a reader over the raw response body. Callers are
-	// responsible for closing the reader. status is populated before
-	// any body reads happen. Used for streaming chat completions and
-	// TTS audio.
+	// DoRaw posts body with an operator-supplied Content-Type and
+	// returns the buffered response. Used by capabilities whose
+	// request shape isn't JSON — notably multipart/form-data for
+	// /images/edits and /audio/transcriptions, where the Content-Type
+	// must preserve the caller's multipart boundary so the backend
+	// can parse the body.
+	DoRaw(ctx context.Context, url, contentType string, body []byte) (status int, respBody []byte, err error)
+
+	// DoStream posts body with Content-Type: application/json and
+	// Accept: text/event-stream, returning a reader over the raw
+	// response body. Callers are responsible for closing the reader.
+	// Used for streaming chat completions and TTS audio.
 	DoStream(ctx context.Context, url string, body []byte) (status int, stream io.ReadCloser, err error)
 }

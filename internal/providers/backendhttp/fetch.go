@@ -41,11 +41,15 @@ func NewFetch() Client {
 }
 
 func (c *fetchClient) DoJSON(ctx context.Context, url string, body []byte) (int, []byte, error) {
+	return c.DoRaw(ctx, url, "application/json", body)
+}
+
+func (c *fetchClient) DoRaw(ctx context.Context, url, contentType string, body []byte) (int, []byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return 0, nil, fmt.Errorf("backendhttp: build request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 
 	resp, err := c.inner.Do(req)
 	if err != nil {

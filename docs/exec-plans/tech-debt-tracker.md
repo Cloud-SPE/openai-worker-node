@@ -43,10 +43,10 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** `providers/tokenizer/NewWordCount` is a word-split + 1.33× multiplier placeholder. tiktoken-go / sentencepiece provider swap would tighten metering accuracy for models where over-debit drag becomes measurable.
 **Resolution target:** Low priority — over-debit policy absorbs the drift; swap when real production traffic shows a customer-visible impact.
 
-### multipart-capability-handling
+### ~~multipart-capability-handling~~ — resolved 2026-04-24
 **Opened:** 2026-04-24 (plans 0005, 0006)
 **Context:** `/v1/images/edits` (image+mask upload) and `/v1/audio/transcriptions` (audio upload) both take multipart/form-data bodies. The current Module.ExtractModel signature assumes `body []byte` is JSON; multipart needs parsing to extract the `model` field and (for transcriptions) audio duration metadata for metering. Rather than ship two divergent implementations, capture the shared requirement and design the multipart path once.
-**Resolution target:** One plan that (a) adds a body-parser seam to the Module interface or a shared helper under `internal/service/modules/multipart/`, (b) lands `/v1/images/edits`, (c) lands `/v1/audio/transcriptions`. Unclaimed.
+**Resolved:** Shared helper `internal/service/modules/multipartutil/` — boundary extraction from raw body (no Module interface change), + `FormField` reader. `backendhttp.Client` gained `DoRaw(ctx, url, contentType, body)` so modules forward the caller's multipart Content-Type + boundary to the backend unchanged. Landed `/v1/images/edits` (same metering formula as images_generations, sourced from form fields) and `/v1/audio/transcriptions` (tier-max reservation; reconciles via `duration` in the backend's verbose_json response when present).
 
 ### audio-speech-content-type-passthrough
 **Opened:** 2026-04-24 (plan 0006)

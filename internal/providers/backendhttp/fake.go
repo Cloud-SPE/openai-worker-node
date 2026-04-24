@@ -16,10 +16,18 @@ import (
 type Fake struct {
 	mu sync.Mutex
 
-	// For DoJSON:
+	// For DoJSON + DoRaw (shared — DoJSON is just DoRaw with a
+	// fixed Content-Type, so tests that assert one also apply to
+	// the other).
 	JSONStatus int
 	JSONBody   []byte
 	JSONErr    error
+
+	// For DoRaw specifically: LastRawContentType captures what the
+	// caller passed, so tests can assert multipart boundary
+	// preservation.
+	LastRawContentType string
+	RawCalls           int
 
 	// For DoStream: StreamChunks is written one-per-chunk (each chunk
 	// already includes the `data: ...\n\n` framing, or the final
@@ -45,12 +53,18 @@ func NewFake() *Fake {
 	}
 }
 
-func (f *Fake) DoJSON(_ context.Context, url string, body []byte) (int, []byte, error) {
+func (f *Fake) DoJSON(ctx context.Context, url string, body []byte) (int, []byte, error) {
+	return f.DoRaw(ctx, url, "application/json", body)
+}
+
+func (f *Fake) DoRaw(_ context.Context, url, contentType string, body []byte) (int, []byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.JSONCalls++
+	f.RawCalls++
 	f.LastJSONURL = url
 	f.LastJSONBody = append([]byte(nil), body...)
+	f.LastRawContentType = contentType
 	if f.JSONErr != nil {
 		return 0, nil, f.JSONErr
 	}
