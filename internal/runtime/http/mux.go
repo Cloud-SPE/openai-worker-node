@@ -22,6 +22,10 @@ import (
 // No direct access to the underlying http.ServeMux is exposed —
 // forcing every paid request through paymentMiddleware is the only
 // way core belief #3 stays enforceable.
+//
+// Paid-route concurrency is capped by a buffered-channel semaphore
+// sized from cfg.Worker.MaxConcurrentRequests. Unpaid routes are NOT
+// subject to the cap — health-check volume shouldn't starve inference.
 type Mux struct {
 	cfg    *config.Config
 	payee  payeedaemon.Client
@@ -37,14 +41,27 @@ type Mux struct {
 	// registered, so we can confirm all config-declared capabilities
 	// have a module before Start.
 	paidCapabilities map[types.CapabilityID]struct{}
+
+	// paidSem is a non-blocking semaphore: cap = max_concurrent_requests,
+	// len = currently-in-flight. Acquired on entry to paymentMiddleware;
+	// failure returns 503 capacity_exhausted.
+	paidSem chan struct{}
 }
 
 // NewMux wires a Mux against a validated config and a connected
 // payee-daemon client. The logger is threaded into paymentMiddleware
-// for structured per-request event emission.
+// for structured per-request event emission. The paid-route
+// semaphore is sized from cfg.Worker.MaxConcurrentRequests; a non-
+// positive value falls back to 1 (better than panicking at startup
+// and less confusing than a zero-capacity channel that blocks
+// everything).
 func NewMux(cfg *config.Config, payee payeedaemon.Client, logger *slog.Logger) *Mux {
 	if logger == nil {
 		logger = slog.Default()
+	}
+	maxConcurrent := cfg.Worker.MaxConcurrentRequests
+	if maxConcurrent <= 0 {
+		maxConcurrent = 1
 	}
 	return &Mux{
 		cfg:              cfg,
@@ -53,7 +70,20 @@ func NewMux(cfg *config.Config, payee payeedaemon.Client, logger *slog.Logger) *
 		inner:            http.NewServeMux(),
 		registered:       map[string]struct{}{},
 		paidCapabilities: map[types.CapabilityID]struct{}{},
+		paidSem:          make(chan struct{}, maxConcurrent),
 	}
+}
+
+// InflightPaid returns the count of paid requests currently holding
+// a semaphore slot. Exposed for /health.
+func (m *Mux) InflightPaid() int {
+	return len(m.paidSem)
+}
+
+// MaxConcurrentPaid returns the configured ceiling on paid-request
+// concurrency. Exposed for /health.
+func (m *Mux) MaxConcurrentPaid() int {
+	return cap(m.paidSem)
 }
 
 // Register binds an unpaid handler. Panics on duplicate (method, path)
@@ -85,6 +115,7 @@ func (m *Mux) RegisterPaidRoute(mod modules.Module) {
 		module: mod,
 		cfg:    m.cfg,
 		payee:  m.payee,
+		sem:    m.paidSem,
 		logger: m.logger,
 	})
 	m.inner.HandleFunc(key, handler)

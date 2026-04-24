@@ -26,6 +26,10 @@ type paidRouteDeps struct {
 	module modules.Module
 	cfg    *config.Config
 	payee  payeedaemon.Client
+	// sem is the Mux's paid-route semaphore. Buffered channel;
+	// cap = worker.max_concurrent_requests, len = in-flight count.
+	// Middleware attempts a non-blocking send on entry.
+	sem    chan struct{}
 	logger *slog.Logger
 }
 
@@ -49,6 +53,20 @@ type paidRouteDeps struct {
 // docs/product-specs/index.md: 402 / 404 / 502 / 503 / 400.
 func paymentMiddleware(deps paidRouteDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// 0. Concurrency gate. Non-blocking: if no slot is free we
+		//    immediately return 503 rather than queuing — per the
+		//    architecture, queueing adds tail-latency debt we don't
+		//    want. Unpaid routes bypass this entirely.
+		if deps.sem != nil {
+			select {
+			case deps.sem <- struct{}{}:
+				defer func() { <-deps.sem }()
+			default:
+				writeJSONError(w, http.StatusServiceUnavailable, "capacity_exhausted", "worker at max_concurrent_requests — retry after in-flight requests drain")
+				return
+			}
+		}
+
 		ctx := r.Context()
 
 		// 1. Body.

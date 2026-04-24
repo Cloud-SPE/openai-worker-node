@@ -50,22 +50,25 @@ func parseQuoteParams(r *http.Request) (sender []byte, capability string, err er
 // Called from server wiring; split out so tests can bind a mux
 // without the full Server.
 func RegisterUnpaidHandlers(m *Mux, cfg *config.Config) {
-	m.Register(http.MethodGet, "/health", healthHandler(cfg))
+	m.Register(http.MethodGet, "/health", healthHandler(cfg, m))
 	m.Register(http.MethodGet, "/capabilities", capabilitiesHandler(cfg))
 	m.Register(http.MethodGet, "/quote", quoteHandler(cfg, m.payee))
 	m.Register(http.MethodGet, "/quotes", quotesHandler(cfg, m.payee))
 }
 
 // healthHandler reports liveness + protocol version + configured
-// capacity. inflight + queue depth are backlog (need the Server's
-// live counter).
-func healthHandler(cfg *config.Config) http.HandlerFunc {
+// capacity + current paid-route inflight count. The inflight value
+// reflects live semaphore usage — useful both for operator dashboards
+// and for bridge-side load-awareness if we ever add a "prefer-less-
+// loaded-worker" feature.
+func healthHandler(cfg *config.Config, mux *Mux) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"status":           "ok",
 			"protocol_version": cfg.ProtocolVersion,
-			"max_concurrent":   cfg.Worker.MaxConcurrentRequests,
+			"max_concurrent":   mux.MaxConcurrentPaid(),
+			"inflight":         mux.InflightPaid(),
 		})
 	}
 }

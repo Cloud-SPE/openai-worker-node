@@ -28,10 +28,10 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** `GET /quote?sender=&capability=` and `GET /quotes?sender=` are part of the worker HTTP contract (`docs/product-specs/index.md`). Not implemented in 0003 because they need a new `GetQuote` method on the `payeedaemon.Client` provider and a corresponding fake method. Small scope but its own plan.
 **Resolved:** `GetQuote` added to `payeedaemon.Client` (+ gRPC impl + Fake). `/quote` and `/quotes` handlers live in `internal/runtime/http/handlers.go`; both registered by `RegisterUnpaidHandlers`. Byte-fields rendered as `0x`-prefixed hex for bridge compatibility. 7 tests in `quote_test.go` covering happy/missing-sender/bad-sender/missing-capability/daemon-error + /quotes happy + fail-closed-on-any-error.
 
-### concurrency-limiter
+### ~~concurrency-limiter~~ — resolved 2026-04-24
 **Opened:** 2026-04-24 (plan 0003)
 **Context:** `worker.max_concurrent_requests` is parsed and surfaced in `/health` but not enforced. The 503 capacity_exhausted response path in `docs/product-specs/index.md` has no producer. A semaphore-wrapped paid-route handler closes the gap.
-**Resolution target:** Unclaimed — small dedicated plan.
+**Resolved:** `Mux.paidSem` is a buffered channel sized from `cfg.Worker.MaxConcurrentRequests` (fallback 1 on non-positive). `paymentMiddleware` attempts a non-blocking send on entry; failure returns 503 `capacity_exhausted`. Unpaid routes (/health, /capabilities, /quote, /quotes) bypass the cap. /health now reports live `inflight` + `max_concurrent`. 5 limiter tests including concurrent pin-and-reject via a blocking fake module.
 
 ### recipient-rand-hash-work-id
 **Opened:** 2026-04-24 (plan 0003)
