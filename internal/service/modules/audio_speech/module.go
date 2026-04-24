@@ -85,17 +85,22 @@ func (m *Module) Serve(
 	backendURL string,
 ) (int64, error) {
 	targetURL := strings.TrimRight(backendURL, "/") + HTTPPath
-	status, stream, err := m.backend.DoStream(ctx, targetURL, body)
+	status, backendHeaders, stream, err := m.backend.DoStream(ctx, targetURL, body)
 	if err != nil {
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("audio_speech: backend DoStream: %w", err)
 	}
 	defer stream.Close()
 
-	// We don't know the content-type without a HEAD probe; default to
-	// audio/mpeg (OpenAI's TTS default) and let the backend override
-	// by writing its own if we ever add header forwarding.
-	w.Header().Set("Content-Type", "audio/mpeg")
+	// Relay the backend's Content-Type if present (handles
+	// audio/mpeg vs audio/wav vs audio/opus vs audio/flac across
+	// different TTS backends). Fall back to audio/mpeg — OpenAI's
+	// own default — when the backend doesn't set one.
+	contentType := backendHeaders.Get("Content-Type")
+	if contentType == "" {
+		contentType = "audio/mpeg"
+	}
+	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(status)
 	if _, err := io.Copy(w, stream); err != nil {
 		// Client disconnect or backend hangup mid-stream; logged by

@@ -92,6 +92,40 @@ func TestServe_HappyPath(t *testing.T) {
 	}
 }
 
+func TestServe_RelaysBackendContentType(t *testing.T) {
+	// When the backend sets its own Content-Type (e.g. audio/wav),
+	// the worker relays it verbatim rather than hardcoding audio/mpeg.
+	m, backend := newModule()
+	backend.StreamChunks = [][]byte{[]byte("RIFF....WAVE-bytes")}
+	backend.StreamHeaders = nethttp.Header{}
+	backend.StreamHeaders.Set("Content-Type", "audio/wav")
+
+	body := []byte(`{"model":"tts-1","input":"hi","response_format":"wav"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(nethttp.MethodPost, "/v1/audio/speech", nil)
+	if _, err := m.Serve(context.Background(), rec, req, body, "tts-1", "http://backend.local:9000"); err != nil {
+		t.Fatalf("Serve: %v", err)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "audio/wav" {
+		t.Errorf("content-type relay: got %q, want audio/wav", ct)
+	}
+}
+
+func TestServe_FallsBackToAudioMpegOnEmptyHeaders(t *testing.T) {
+	m, backend := newModule()
+	backend.StreamChunks = [][]byte{[]byte("fake-audio")}
+	// No StreamHeaders set — Fake returns an empty http.Header.
+	body := []byte(`{"model":"tts-1","input":"hi"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(nethttp.MethodPost, "/v1/audio/speech", nil)
+	if _, err := m.Serve(context.Background(), rec, req, body, "tts-1", "http://backend.local:9000"); err != nil {
+		t.Fatalf("Serve: %v", err)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "audio/mpeg" {
+		t.Errorf("fallback content-type: got %q, want audio/mpeg", ct)
+	}
+}
+
 func TestServe_BackendError(t *testing.T) {
 	m, backend := newModule()
 	backend.StreamErr = io.ErrUnexpectedEOF

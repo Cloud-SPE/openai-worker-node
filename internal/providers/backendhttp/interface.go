@@ -3,6 +3,7 @@ package backendhttp
 import (
 	"context"
 	"io"
+	"net/http"
 )
 
 // Client is the module-facing surface for an HTTP inference backend.
@@ -24,8 +25,13 @@ type Client interface {
 	DoRaw(ctx context.Context, url, contentType string, body []byte) (status int, respBody []byte, err error)
 
 	// DoStream posts body with Content-Type: application/json and
-	// Accept: text/event-stream, returning a reader over the raw
-	// response body. Callers are responsible for closing the reader.
-	// Used for streaming chat completions and TTS audio.
-	DoStream(ctx context.Context, url string, body []byte) (status int, stream io.ReadCloser, err error)
+	// Accept: text/event-stream, returning the response status, the
+	// backend's response headers, and a reader over the raw response
+	// body. Callers are responsible for closing the reader.
+	//
+	// Response headers let the caller relay the backend's actual
+	// Content-Type (audio/mpeg vs audio/wav vs text/event-stream)
+	// rather than hardcoding. `headers` is non-nil on success; may
+	// be nil on error.
+	DoStream(ctx context.Context, url string, body []byte) (status int, headers http.Header, stream io.ReadCloser, err error)
 }

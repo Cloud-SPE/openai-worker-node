@@ -139,7 +139,7 @@ func (m *Module) serveJSON(ctx context.Context, w nethttp.ResponseWriter, url st
 }
 
 func (m *Module) serveStream(ctx context.Context, w nethttp.ResponseWriter, url string, body []byte) (int64, error) {
-	status, stream, err := m.backend.DoStream(ctx, url, body)
+	status, _, stream, err := m.backend.DoStream(ctx, url, body)
 	if err != nil {
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("chat_completions: backend DoStream: %w", err)

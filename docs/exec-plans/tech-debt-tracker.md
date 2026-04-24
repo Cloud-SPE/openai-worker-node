@@ -48,10 +48,10 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** `/v1/images/edits` (image+mask upload) and `/v1/audio/transcriptions` (audio upload) both take multipart/form-data bodies. The current Module.ExtractModel signature assumes `body []byte` is JSON; multipart needs parsing to extract the `model` field and (for transcriptions) audio duration metadata for metering. Rather than ship two divergent implementations, capture the shared requirement and design the multipart path once.
 **Resolved:** Shared helper `internal/service/modules/multipartutil/` — boundary extraction from raw body (no Module interface change), + `FormField` reader. `backendhttp.Client` gained `DoRaw(ctx, url, contentType, body)` so modules forward the caller's multipart Content-Type + boundary to the backend unchanged. Landed `/v1/images/edits` (same metering formula as images_generations, sourced from form fields) and `/v1/audio/transcriptions` (tier-max reservation; reconciles via `duration` in the backend's verbose_json response when present).
 
-### audio-speech-content-type-passthrough
+### ~~audio-speech-content-type-passthrough~~ — resolved 2026-04-24
 **Opened:** 2026-04-24 (plan 0006)
 **Context:** `audio_speech.Module.Serve` hardcodes `Content-Type: audio/mpeg` because `backendhttp.DoStream` doesn't currently expose the backend's response headers. Backends that emit WAV/Opus/etc. get mislabeled for the client. The fix is to widen `DoStream` to return the response `http.Header` or at least the `Content-Type`.
-**Resolution target:** Small follow-up; bundle with any future `DoStream` surface change.
+**Resolved:** `backendhttp.Client.DoStream` now returns `(status, headers, stream, err)`. `audio_speech.Module.Serve` reads `Content-Type` from the returned headers, falling back to `audio/mpeg` when absent. Chat completions ignores headers (always sets `text/event-stream`). Fetch impl + Fake updated to carry the header through. Two new tests assert relay + fallback.
 
 ## Resolved
 

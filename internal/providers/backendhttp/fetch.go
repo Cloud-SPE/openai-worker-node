@@ -64,24 +64,25 @@ func (c *fetchClient) DoRaw(ctx context.Context, url, contentType string, body [
 	return resp.StatusCode, buf, nil
 }
 
-func (c *fetchClient) DoStream(ctx context.Context, url string, body []byte) (int, io.ReadCloser, error) {
+func (c *fetchClient) DoStream(ctx context.Context, url string, body []byte) (int, http.Header, io.ReadCloser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return 0, nil, fmt.Errorf("backendhttp: build request: %w", err)
+		return 0, nil, nil, fmt.Errorf("backendhttp: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 
 	resp, err := c.inner.Do(req)
 	if err != nil {
-		return 0, nil, fmt.Errorf("backendhttp: do: %w", err)
+		return 0, nil, nil, fmt.Errorf("backendhttp: do: %w", err)
 	}
 	// Non-2xx on a stream call: consume + close the body, return
-	// status; the module decides how to map to an HTTP error.
+	// status + headers; the module decides how to map to an HTTP
+	// error (bridge sees the backend's own error body).
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		buf, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		return resp.StatusCode, io.NopCloser(bytes.NewReader(buf)), nil
+		return resp.StatusCode, resp.Header, io.NopCloser(bytes.NewReader(buf)), nil
 	}
-	return resp.StatusCode, resp.Body, nil
+	return resp.StatusCode, resp.Header, resp.Body, nil
 }

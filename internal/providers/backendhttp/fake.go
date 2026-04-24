@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"sync"
 )
 
@@ -33,9 +34,10 @@ type Fake struct {
 	// already includes the `data: ...\n\n` framing, or the final
 	// `data: [DONE]\n\n` marker). Kept raw so tests can insert exactly
 	// what they want the module to see.
-	StreamStatus int
-	StreamChunks [][]byte
-	StreamErr    error
+	StreamStatus  int
+	StreamHeaders http.Header
+	StreamChunks  [][]byte
+	StreamErr     error
 
 	// Observations recorded on each call.
 	LastJSONURL    string
@@ -71,18 +73,22 @@ func (f *Fake) DoRaw(_ context.Context, url, contentType string, body []byte) (i
 	return f.JSONStatus, append([]byte(nil), f.JSONBody...), nil
 }
 
-func (f *Fake) DoStream(_ context.Context, url string, body []byte) (int, io.ReadCloser, error) {
+func (f *Fake) DoStream(_ context.Context, url string, body []byte) (int, http.Header, io.ReadCloser, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.StreamCalls++
 	f.LastStreamURL = url
 	f.LastStreamBody = append([]byte(nil), body...)
 	if f.StreamErr != nil {
-		return 0, nil, f.StreamErr
+		return 0, nil, nil, f.StreamErr
 	}
 	buf := bytes.NewBuffer(nil)
 	for _, c := range f.StreamChunks {
 		buf.Write(c)
 	}
-	return f.StreamStatus, io.NopCloser(buf), nil
+	headers := f.StreamHeaders
+	if headers == nil {
+		headers = http.Header{}
+	}
+	return f.StreamStatus, headers.Clone(), io.NopCloser(buf), nil
 }
