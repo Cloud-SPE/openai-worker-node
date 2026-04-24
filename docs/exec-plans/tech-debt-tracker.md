@@ -43,6 +43,16 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** `providers/tokenizer/NewWordCount` is a word-split + 1.33× multiplier placeholder. tiktoken-go / sentencepiece provider swap would tighten metering accuracy for models where over-debit drag becomes measurable.
 **Resolution target:** Low priority — over-debit policy absorbs the drift; swap when real production traffic shows a customer-visible impact.
 
+### multipart-capability-handling
+**Opened:** 2026-04-24 (plans 0005, 0006)
+**Context:** `/v1/images/edits` (image+mask upload) and `/v1/audio/transcriptions` (audio upload) both take multipart/form-data bodies. The current Module.ExtractModel signature assumes `body []byte` is JSON; multipart needs parsing to extract the `model` field and (for transcriptions) audio duration metadata for metering. Rather than ship two divergent implementations, capture the shared requirement and design the multipart path once.
+**Resolution target:** One plan that (a) adds a body-parser seam to the Module interface or a shared helper under `internal/service/modules/multipart/`, (b) lands `/v1/images/edits`, (c) lands `/v1/audio/transcriptions`. Unclaimed.
+
+### audio-speech-content-type-passthrough
+**Opened:** 2026-04-24 (plan 0006)
+**Context:** `audio_speech.Module.Serve` hardcodes `Content-Type: audio/mpeg` because `backendhttp.DoStream` doesn't currently expose the backend's response headers. Backends that emit WAV/Opus/etc. get mislabeled for the client. The fix is to widen `DoStream` to return the response `http.Header` or at least the `Content-Type`.
+**Resolution target:** Small follow-up; bundle with any future `DoStream` surface change.
+
 ## Resolved
 
 _None yet._

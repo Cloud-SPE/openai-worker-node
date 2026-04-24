@@ -30,8 +30,10 @@ import (
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/payeedaemon"
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/tokenizer"
 	rthttp "github.com/Cloud-SPE/openai-worker-node/internal/runtime/http"
+	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules/audio_speech"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules/chat_completions"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules/embeddings"
+	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules/images_generations"
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
 )
 
@@ -176,6 +178,22 @@ func registerModules(
 			registered++
 		case embeddings.Capability:
 			mod := embeddings.New(tok, backend)
+			mux.RegisterPaidRoute(mod)
+			logger.Info("capability registered",
+				"capability", mod.Capability(),
+				"path", mod.HTTPPath(),
+				"models", len(entry.Models))
+			registered++
+		case images_generations.Capability:
+			mod := images_generations.New(backend)
+			mux.RegisterPaidRoute(mod)
+			logger.Info("capability registered",
+				"capability", mod.Capability(),
+				"path", mod.HTTPPath(),
+				"models", len(entry.Models))
+			registered++
+		case audio_speech.Capability:
+			mod := audio_speech.New(backend)
 			mux.RegisterPaidRoute(mod)
 			logger.Info("capability registered",
 				"capability", mod.Capability(),
