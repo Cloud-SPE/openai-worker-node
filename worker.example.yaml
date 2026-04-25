@@ -1,31 +1,45 @@
-# Annotated example worker.yaml.
+# Annotated worker.yaml — Arbitrum One mainnet, Ollama chat-only smoke.
 #
 # Shared between livepeer-payment-daemon (receiver mode) and this
 # openai-worker-node. Both parse independently at startup; mismatch is
 # a fail-closed condition.
 #
 # Contract: livepeer-payment-library/docs/design-docs/shared-yaml.md
+#
+# Copy this file to worker.yaml at the repo root (gitignored), edit the
+# four REPLACE_* placeholders, and let compose.prod.yaml mount it at
+# /etc/livepeer/worker.yaml inside both containers.
 
 protocol_version: 1
 
 # ─── Daemon-only section ─────────────────────────────────────────────────
 # Parsed by livepeer-payment-daemon. Ignored by openai-worker-node.
 payment_daemon:
-  grpc_listen: unix:///var/run/lpd.sock
-  recipient_eth_address: "0xREPLACE_WITH_WORKER_ETH_ADDRESS"
+  grpc_listen: unix:///var/run/livepeer/payment-daemon.sock
+
+  # The Ethereum address that receives tickets. MUST be:
+  #   - the same address the keystore in compose's RECIPIENT_KEYSTORE_PATH
+  #     decrypts to;
+  #   - a registered orchestrator on Arbitrum One BondingManager
+  #     (otherwise tickets accumulate but never redeem profitably);
+  #   - the value the bridge uses in its nodes.yaml `ethAddress` field
+  #     for this worker.
+  recipient_eth_address: "0xREPLACE_WITH_RECIPIENT_ETH_ADDRESS"
 
   broker:
-    # mode: ethereum → real on-chain broker (production)
-    # mode: fake     → in-memory fake for local dev / CI
+    # Production = ethereum (real on-chain TicketBroker). `fake` is an
+    # in-memory fake for local dev / CI; never use it on mainnet.
     mode: ethereum
     rpc_url: "https://arb1.arbitrum.io/rpc"
-    ticket_broker_contract: "0xREPLACE"
-    # fake-mode only:
-    # fake_sender_balances_wei:
-    #   "0xBRIDGE_ADDR": "1000000000000000000"
+    # Arbitrum One TicketBroker. Hardcoded by Livepeer; only change if
+    # you're on a fork.
+    ticket_broker_contract: "0xa8bB618B1520E284046F3dFc448851A1Ff26e41B"
 
   keystore:
-    path: /etc/livepeer/keystore/recipient.json
+    path: /etc/livepeer/keystore.json
+    # compose.prod.yaml passes the password file via the daemon's
+    # --keystore-password-file flag, so this setting is informational
+    # unless you run the daemon outside compose.
     passphrase_env: LIVEPEER_KEYSTORE_PASSPHRASE
 
   store:
@@ -36,60 +50,79 @@ payment_daemon:
 # Parsed by openai-worker-node. Ignored by livepeer-payment-daemon.
 worker:
   http_listen: "0.0.0.0:8080"
-  payment_daemon_socket: /var/run/lpd.sock
-  max_concurrent_requests: 32
-  # Call PayeeDaemon.ListCapabilities at startup and fail if the daemon's
-  # catalog doesn't match this file. Recommended true; disabling is a
-  # footgun that re-opens the drift failure mode the shared YAML exists
-  # to prevent.
+  payment_daemon_socket: /var/run/livepeer/payment-daemon.sock
+  # Cap on simultaneous in-flight paid requests. Size to roughly match
+  # what Ollama can serve concurrently — too high and requests pile up
+  # at Ollama, too low and the worker 503s under bursts. 16 is a fine
+  # starting point for a single-GPU Ollama host.
+  max_concurrent_requests: 16
+
+  # Cross-check this YAML against the daemon's ListCapabilities at
+  # startup; refuse to serve if the catalogs diverge. Always true in
+  # production — disabling re-opens the drift class of bugs the shared
+  # YAML exists to prevent.
   verify_daemon_consistency_on_start: true
 
 # ─── Shared section ─────────────────────────────────────────────────────
-# Both daemon and worker parse these. Prices are the source of truth for
-# daemon's GetQuote responses; worker advertises the same values on its
-# HTTP /capabilities endpoint and uses backend_url for request routing.
+# Both daemon and worker parse these. Prices = wei per work-unit. The
+# daemon advertises them via GetQuote; the worker advertises the same
+# values on its HTTP /capabilities endpoint and dispatches each request
+# to the matching backend_url.
+#
+# First-deploy minimum: chat-only, one model, one backend. Add more
+# capabilities (embeddings / images / speech / transcriptions) once the
+# corresponding backends are live; commented examples follow at the
+# bottom.
 capabilities:
   - capability: "openai:/v1/chat/completions"
     work_unit: token
     models:
-      - model: "llama-3.3-70b"
-        price_per_work_unit_wei: "2000000000"
-        backend_url: "http://localhost:8000"
-      - model: "mistral-7b-instruct"
-        price_per_work_unit_wei: "500000000"
-        backend_url: "http://localhost:8001"
+      - model: "gemma4:26b"
+        # 200 gwei / 1e9 = 2e-7 ETH per token. At ~$4000/ETH that's
+        # roughly $0.80 per 1M tokens — sets the per-node price floor;
+        # the bridge applies its own customer-facing markup via
+        # `starter` tier ($0.20 input / $0.60 output per 1M).
+        price_per_work_unit_wei: "200000000000"
+        # Ollama's OpenAI-compatible endpoint. If Ollama runs on the
+        # same docker host as this stack, use the host gateway IP
+        # (172.17.0.1 on Linux) or attach Ollama to the same docker
+        # network and use its container name. If Ollama runs on a
+        # different VPS, use its private/public hostname.
+        backend_url: "http://REPLACE_WITH_OLLAMA_HOST:11434"
 
-  - capability: "openai:/v1/embeddings"
-    work_unit: token
-    models:
-      - model: "text-embedding-3-small"
-        price_per_work_unit_wei: "100000000"
-        backend_url: "http://localhost:8002"
-
-  - capability: "openai:/v1/images/generations"
-    work_unit: image_step_megapixel
-    models:
-      - model: "sdxl-turbo"
-        price_per_work_unit_wei: "500000000000"
-        backend_url: "http://localhost:8003"
-
-  - capability: "openai:/v1/images/edits"
-    work_unit: image_step_megapixel
-    models:
-      - model: "sdxl-edit"
-        price_per_work_unit_wei: "500000000000"
-        backend_url: "http://localhost:8003"
-
-  - capability: "openai:/v1/audio/speech"
-    work_unit: character
-    models:
-      - model: "tts-1"
-        price_per_work_unit_wei: "100000000"
-        backend_url: "http://localhost:8005"
-
-  - capability: "openai:/v1/audio/transcriptions"
-    work_unit: audio_second
-    models:
-      - model: "whisper-large-v3"
-        price_per_work_unit_wei: "100000000000"
-        backend_url: "http://localhost:8004"
+  # ─── Other capabilities (uncomment when the backend is ready) ────────
+  #
+  # - capability: "openai:/v1/embeddings"
+  #   work_unit: token
+  #   models:
+  #     - model: "text-embedding-3-small"
+  #       price_per_work_unit_wei: "100000000"
+  #       backend_url: "http://REPLACE_WITH_EMBEDDINGS_BACKEND:PORT"
+  #
+  # - capability: "openai:/v1/images/generations"
+  #   work_unit: image_step_megapixel
+  #   models:
+  #     - model: "sdxl-turbo"
+  #       price_per_work_unit_wei: "500000000000"
+  #       backend_url: "http://REPLACE_WITH_IMAGES_BACKEND:PORT"
+  #
+  # - capability: "openai:/v1/images/edits"
+  #   work_unit: image_step_megapixel
+  #   models:
+  #     - model: "sdxl-edit"
+  #       price_per_work_unit_wei: "500000000000"
+  #       backend_url: "http://REPLACE_WITH_IMAGES_BACKEND:PORT"
+  #
+  # - capability: "openai:/v1/audio/speech"
+  #   work_unit: character
+  #   models:
+  #     - model: "tts-1"
+  #       price_per_work_unit_wei: "100000000"
+  #       backend_url: "http://REPLACE_WITH_TTS_BACKEND:PORT"
+  #
+  # - capability: "openai:/v1/audio/transcriptions"
+  #   work_unit: audio_second
+  #   models:
+  #     - model: "whisper-large-v3"
+  #       price_per_work_unit_wei: "100000000000"
+  #       backend_url: "http://REPLACE_WITH_STT_BACKEND:PORT"
