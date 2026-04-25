@@ -59,6 +59,10 @@ services:
     command:
       - --config=/etc/livepeer/worker.yaml
       - --log-level=${WORKER_LOG_LEVEL:-info}
+      # METRICS_PORT (default empty) enables the Prometheus /metrics
+      # listener inside the container. See .env.example + docs/operations
+      # /running-with-docker.md#observability.
+      - --metrics-listen=${METRICS_PORT:+:${METRICS_PORT}}
     volumes:
       - ${WORKER_YAML_PATH:-./worker.yaml}:/etc/livepeer/worker.yaml:ro
       - payment-daemon-sock:/var/run/livepeer:ro
@@ -68,6 +72,11 @@ services:
       # block if cloudflared shares the cf-tunnel network and reaches
       # the container by name.
       - '${WORKER_HOST_PORT:-8080}:8080'
+      # Metrics port — published only when METRICS_PORT is set in .env.
+      # Bind to 127.0.0.1 if you only want a local Prometheus scraper to
+      # reach it (recommended); leave bare for cluster-wide scraping.
+      # Uncomment after setting METRICS_PORT in .env:
+      #   - '127.0.0.1:${METRICS_PORT}:${METRICS_PORT}'
     networks:
       - default
       - cf-tunnel

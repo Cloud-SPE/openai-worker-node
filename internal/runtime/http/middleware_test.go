@@ -24,6 +24,7 @@ import (
 type fakeModule struct {
 	capability     types.CapabilityID
 	path           string
+	unit           string
 	extractModelFn func(body []byte) (types.ModelID, error)
 	estimateFn     func(body []byte, model types.ModelID) (int64, error)
 	serveFn        func(ctx context.Context, w nethttp.ResponseWriter, r *nethttp.Request, body []byte, model types.ModelID, backendURL string) (int64, error)
@@ -35,6 +36,12 @@ type fakeModule struct {
 func (f *fakeModule) Capability() types.CapabilityID { return f.capability }
 func (f *fakeModule) HTTPMethod() string             { return nethttp.MethodPost }
 func (f *fakeModule) HTTPPath() string               { return f.path }
+func (f *fakeModule) Unit() string {
+	if f.unit == "" {
+		return "token"
+	}
+	return f.unit
+}
 func (f *fakeModule) ExtractModel(body []byte) (types.ModelID, error) {
 	return f.extractModelFn(body)
 }

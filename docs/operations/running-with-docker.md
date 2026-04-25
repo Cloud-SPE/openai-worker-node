@@ -94,6 +94,60 @@ values: `error`, `warn`, `info`, `debug`. Debug logs include per-
 request payment details (sender, work_id, work_units) that are too
 chatty for production but invaluable during integration.
 
+## Observability
+
+The worker can expose Prometheus metrics on a separate listener. Off
+by default — enable by setting `METRICS_PORT` in `.env` (or passing
+`--metrics-listen=:9093` directly when running the binary outside
+Docker).
+
+Two flags control the listener:
+
+| Flag | Default | Notes |
+|---|---|---|
+| `--metrics-listen` | `""` (off) | `host:port`. Empty = no listener. Worker port allocation is `:9093` per [`livepeer-modules-conventions/port-allocation.md`](../../../livepeer-modules-conventions/port-allocation.md). |
+| `--metrics-max-series-per-metric` | `10000` | Hard cap on distinct label tuples per metric. `0` disables the cap. New tuples beyond the cap are dropped (a `WARN` is logged once per metric). |
+
+When enabled, the listener serves:
+
+- `GET /metrics` — Prometheus exposition (the metrics catalog is in [`docs/design-docs/metrics.md`](../design-docs/metrics.md)).
+- `GET /healthz` — plain `ok\n` for the metrics process. The main worker `/health` lives on the regular HTTP port.
+- `GET /` — index page listing the endpoints above.
+
+### Sample Prometheus scrape config
+
+```yaml
+scrape_configs:
+  - job_name: livepeer-openai-worker
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['worker.example:9093']
+        labels:
+          worker: 'vps-1'
+```
+
+For a multi-worker deployment, expand `static_configs` (or use
+`file_sd_configs` for dynamic discovery). The `worker` label is
+optional but useful — it survives in Grafana so you can filter
+dashboards by VPS.
+
+### Production exposure
+
+`compose.prod.yaml` does NOT publish the metrics port to the host by
+default — the line is commented out. Uncomment after setting
+`METRICS_PORT`:
+
+```yaml
+ports:
+  - '127.0.0.1:${METRICS_PORT}:${METRICS_PORT}'
+```
+
+Bind to `127.0.0.1` if your Prometheus runs on the same VPS;
+drop the prefix only if you've firewalled the port at the network
+level. The endpoint is unauthenticated — `/metrics` enumerates every
+configured `(capability, model)` pair, which is operationally
+sensitive.
+
 ## Upgrading
 
 When the library tags a release:

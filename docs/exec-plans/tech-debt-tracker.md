@@ -53,6 +53,11 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** `audio_speech.Module.Serve` hardcodes `Content-Type: audio/mpeg` because `backendhttp.DoStream` doesn't currently expose the backend's response headers. Backends that emit WAV/Opus/etc. get mislabeled for the client. The fix is to widen `DoStream` to return the response `http.Header` or at least the `Content-Type`.
 **Resolved:** `backendhttp.Client.DoStream` now returns `(status, headers, stream, err)`. `audio_speech.Module.Serve` reads `Content-Type` from the returned headers, falling back to `audio/mpeg` when absent. Chat completions ignores headers (always sets `text/event-stream`). Fetch impl + Fake updated to carry the header through. Two new tests assert relay + fallback.
 
+### ~~no-prometheus-metrics~~ — resolved 2026-04-25
+**Opened:** 2026-04-25 (Phase 1 metrics)
+**Context:** The worker exposed `/health` + `/capabilities` only. Operators had no Prometheus surface — no request throughput, no work-units counter, no daemon-RPC latency, no backend health, no payment-rejection breakdown. The bridge's margin reconciliation needs `livepeer_worker_work_units_total` to join against revenue.
+**Resolved:** Phase 1 metrics rolled out across two passes. Pass A (commits `413eaa5`, `ed9d97e`, `ce30419`) shipped the scaffold: `Recorder` interface (`internal/providers/metrics`), Prometheus + Noop impls, TCP listener (`internal/runtime/metrics`), and three `WithMetrics(...)` decorators on payeedaemon, backendhttp (per-(capability, model)), tokenizer. Pass B (this commit) activated the scaffold: `--metrics-listen` + `--metrics-max-series-per-metric` flags, composition root in `cmd/openai-worker-node/main.go`, Recorder injection through the `Mux` into `paymentMiddleware` (request lifecycle, capacity rejection, payment rejection, inflight gauge, work units), `Unit() string` on every capability module, and per-call backend wrapping inside each module's Serve. `.env.example`, `compose.yaml`, `compose.prod.yaml` and `docs/operations/running-with-docker.md` updated. Phase 2 (streaming TTFT, reconcile-delta histograms) tracked separately.
+
 ## Resolved
 
 _None yet._

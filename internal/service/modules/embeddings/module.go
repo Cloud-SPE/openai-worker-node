@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/backendhttp"
+	"github.com/Cloud-SPE/openai-worker-node/internal/providers/metrics"
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/tokenizer"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules"
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
@@ -24,8 +25,9 @@ const (
 // Module adapts openai:/v1/embeddings. Stateless; safe for concurrent
 // use — all state is in ctx + body + providers.
 type Module struct {
-	tok     tokenizer.Tokenizer
-	backend backendhttp.Client
+	tok      tokenizer.Tokenizer
+	backend  backendhttp.Client
+	recorder metrics.Recorder
 }
 
 // New wires the module against the shared tokenizer and backend HTTP
@@ -34,12 +36,24 @@ func New(tok tokenizer.Tokenizer, backend backendhttp.Client) *Module {
 	return &Module{tok: tok, backend: backend}
 }
 
+// WithRecorder injects the metrics recorder used to wrap the backend
+// client per-(capability, model) inside Serve. Optional.
+func (m *Module) WithRecorder(rec metrics.Recorder) *Module {
+	m.recorder = rec
+	return m
+}
+
 // Compile-time interface check.
 var _ modules.Module = (*Module)(nil)
 
 func (m *Module) Capability() types.CapabilityID { return Capability }
 func (m *Module) HTTPMethod() string             { return nethttp.MethodPost }
 func (m *Module) HTTPPath() string               { return HTTPPath }
+func (m *Module) Unit() string                   { return metrics.UnitToken }
+
+func (m *Module) backendFor(model types.ModelID) backendhttp.Client {
+	return backendhttp.WithMetrics(m.backend, m.recorder, string(Capability), string(model))
+}
 
 // ExtractModel pulls `model` out of the request JSON.
 func (m *Module) ExtractModel(body []byte) (types.ModelID, error) {
@@ -81,11 +95,11 @@ func (m *Module) Serve(
 	w nethttp.ResponseWriter,
 	_ *nethttp.Request,
 	body []byte,
-	_ types.ModelID,
+	model types.ModelID,
 	backendURL string,
 ) (int64, error) {
 	targetURL := strings.TrimRight(backendURL, "/") + HTTPPath
-	status, respBody, err := m.backend.DoJSON(ctx, targetURL, body)
+	status, respBody, err := m.backendFor(model).DoJSON(ctx, targetURL, body)
 	if err != nil {
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("embeddings: backend DoJSON: %w", err)

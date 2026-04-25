@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Cloud-SPE/openai-worker-node/internal/config"
+	"github.com/Cloud-SPE/openai-worker-node/internal/providers/metrics"
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/payeedaemon"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules"
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
@@ -27,10 +28,11 @@ import (
 // sized from cfg.Worker.MaxConcurrentRequests. Unpaid routes are NOT
 // subject to the cap — health-check volume shouldn't starve inference.
 type Mux struct {
-	cfg    *config.Config
-	payee  payeedaemon.Client
-	logger *slog.Logger
-	inner  *http.ServeMux
+	cfg      *config.Config
+	payee    payeedaemon.Client
+	logger   *slog.Logger
+	recorder metrics.Recorder
+	inner    *http.ServeMux
 
 	// registered tracks every (method, path) already bound so we can
 	// fail loudly on duplicates at startup rather than silently
@@ -67,11 +69,24 @@ func NewMux(cfg *config.Config, payee payeedaemon.Client, logger *slog.Logger) *
 		cfg:              cfg,
 		payee:            payee,
 		logger:           logger,
+		recorder:         metrics.NewNoop(),
 		inner:            http.NewServeMux(),
 		registered:       map[string]struct{}{},
 		paidCapabilities: map[types.CapabilityID]struct{}{},
 		paidSem:          make(chan struct{}, maxConcurrent),
 	}
+}
+
+// WithRecorder injects the metrics Recorder into every paid-route
+// handler subsequently registered. Optional — defaults to noop. Call
+// before RegisterPaidRoute so the recorder is closed over by the
+// middleware.
+func (m *Mux) WithRecorder(rec metrics.Recorder) *Mux {
+	if rec == nil {
+		rec = metrics.NewNoop()
+	}
+	m.recorder = rec
+	return m
 }
 
 // InflightPaid returns the count of paid requests currently holding
@@ -112,11 +127,12 @@ func (m *Mux) RegisterPaidRoute(mod modules.Module) {
 	m.paidCapabilities[mod.Capability()] = struct{}{}
 
 	handler := paymentMiddleware(paidRouteDeps{
-		module: mod,
-		cfg:    m.cfg,
-		payee:  m.payee,
-		sem:    m.paidSem,
-		logger: m.logger,
+		module:   mod,
+		cfg:      m.cfg,
+		payee:    m.payee,
+		sem:      m.paidSem,
+		logger:   m.logger,
+		recorder: m.recorder,
 	})
 	m.inner.HandleFunc(key, handler)
 }

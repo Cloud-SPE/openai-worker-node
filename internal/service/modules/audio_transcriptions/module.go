@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/backendhttp"
+	"github.com/Cloud-SPE/openai-worker-node/internal/providers/metrics"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules/multipartutil"
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
@@ -30,6 +31,7 @@ const DefaultMaxAudioSeconds = 3600
 // Module adapts openai:/v1/audio/transcriptions.
 type Module struct {
 	backend             backendhttp.Client
+	recorder            metrics.Recorder
 	MaxAudioSecondsCeil int64
 }
 
@@ -37,11 +39,23 @@ func New(backend backendhttp.Client) *Module {
 	return &Module{backend: backend, MaxAudioSecondsCeil: DefaultMaxAudioSeconds}
 }
 
+// WithRecorder injects the metrics recorder used to wrap the backend
+// client per-(capability, model) inside Serve. Optional.
+func (m *Module) WithRecorder(rec metrics.Recorder) *Module {
+	m.recorder = rec
+	return m
+}
+
 var _ modules.Module = (*Module)(nil)
 
 func (m *Module) Capability() types.CapabilityID { return Capability }
 func (m *Module) HTTPMethod() string             { return nethttp.MethodPost }
 func (m *Module) HTTPPath() string               { return HTTPPath }
+func (m *Module) Unit() string                   { return metrics.UnitAudioSecond }
+
+func (m *Module) backendFor(model types.ModelID) backendhttp.Client {
+	return backendhttp.WithMetrics(m.backend, m.recorder, string(Capability), string(model))
+}
 
 func (m *Module) ExtractModel(body []byte) (types.ModelID, error) {
 	val, ok, err := multipartutil.FormField(body, "model")
@@ -81,7 +95,7 @@ func (m *Module) Serve(
 	w nethttp.ResponseWriter,
 	r *nethttp.Request,
 	body []byte,
-	_ types.ModelID,
+	model types.ModelID,
 	backendURL string,
 ) (int64, error) {
 	contentType := r.Header.Get("Content-Type")
@@ -90,7 +104,7 @@ func (m *Module) Serve(
 		return 0, errors.New("audio_transcriptions: Content-Type is not multipart/form-data")
 	}
 	targetURL := strings.TrimRight(backendURL, "/") + HTTPPath
-	status, respBody, err := m.backend.DoRaw(ctx, targetURL, contentType, body)
+	status, respBody, err := m.backendFor(model).DoRaw(ctx, targetURL, contentType, body)
 	if err != nil {
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("audio_transcriptions: backend DoRaw: %w", err)

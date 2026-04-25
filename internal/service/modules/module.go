@@ -30,6 +30,14 @@ type Module interface {
 	// lifetime — the mux registers once at startup.
 	HTTPPath() string
 
+	// Unit returns the work-unit dimension this capability meters in.
+	// One of: "token", "character", "audio_second",
+	// "image_step_megapixel" — see metrics conventions. The middleware
+	// uses this string when emitting `work_units_total` after a
+	// successful response so the module stays the single source of
+	// truth for its own metering dimension.
+	Unit() string
+
 	// ExtractModel inspects the request body and returns the model the
 	// request is addressed to. The mux uses this to resolve
 	// (capability, model) → backend URL before DebitBalance. Returns

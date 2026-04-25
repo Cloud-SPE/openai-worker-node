@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/backendhttp"
+	"github.com/Cloud-SPE/openai-worker-node/internal/providers/metrics"
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/tokenizer"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules"
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
@@ -29,8 +30,9 @@ const (
 // once at worker startup (see New) and handed to
 // runtime/http.Mux.RegisterPaidRoute.
 type Module struct {
-	tok     tokenizer.Tokenizer
-	backend backendhttp.Client
+	tok      tokenizer.Tokenizer
+	backend  backendhttp.Client
+	recorder metrics.Recorder
 
 	// DefaultMaxCompletionTokens is what EstimateWorkUnits reserves
 	// when the request body omits max_tokens. OpenAI's own default is
@@ -49,12 +51,29 @@ func New(tok tokenizer.Tokenizer, backend backendhttp.Client) *Module {
 	}
 }
 
+// WithRecorder injects the metrics recorder used to wrap the backend
+// client per-(capability, model) inside Serve. Optional — when unset
+// or nil, backendhttp calls are not metered. Returns the module so the
+// composition root can chain.
+func (m *Module) WithRecorder(rec metrics.Recorder) *Module {
+	m.recorder = rec
+	return m
+}
+
 // Assert Module satisfies the modules.Module interface at compile time.
 var _ modules.Module = (*Module)(nil)
 
 func (m *Module) Capability() types.CapabilityID { return Capability }
 func (m *Module) HTTPMethod() string             { return nethttp.MethodPost }
 func (m *Module) HTTPPath() string               { return HTTPPath }
+func (m *Module) Unit() string                   { return metrics.UnitToken }
+
+// backendFor returns the backend client wrapped with per-(capability,
+// model) metrics labels. When no recorder is wired, the bare client is
+// returned and WithMetrics short-circuits to a no-op.
+func (m *Module) backendFor(model types.ModelID) backendhttp.Client {
+	return backendhttp.WithMetrics(m.backend, m.recorder, string(Capability), string(model))
+}
 
 // ExtractModel pulls model out of the request body. Returns an error
 // if the body isn't JSON or `model` is missing/empty — the middleware
@@ -107,7 +126,7 @@ func (m *Module) Serve(
 	w nethttp.ResponseWriter,
 	_ *nethttp.Request,
 	body []byte,
-	_ types.ModelID,
+	model types.ModelID,
 	backendURL string,
 ) (int64, error) {
 	var r request
@@ -116,13 +135,13 @@ func (m *Module) Serve(
 	}
 	targetURL := strings.TrimRight(backendURL, "/") + HTTPPath
 	if r.Stream {
-		return m.serveStream(ctx, w, targetURL, body)
+		return m.serveStream(ctx, w, targetURL, body, model)
 	}
-	return m.serveJSON(ctx, w, targetURL, body)
+	return m.serveJSON(ctx, w, targetURL, body, model)
 }
 
-func (m *Module) serveJSON(ctx context.Context, w nethttp.ResponseWriter, url string, body []byte) (int64, error) {
-	status, respBody, err := m.backend.DoJSON(ctx, url, body)
+func (m *Module) serveJSON(ctx context.Context, w nethttp.ResponseWriter, url string, body []byte, model types.ModelID) (int64, error) {
+	status, respBody, err := m.backendFor(model).DoJSON(ctx, url, body)
 	if err != nil {
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("chat_completions: backend DoJSON: %w", err)
@@ -140,8 +159,8 @@ func (m *Module) serveJSON(ctx context.Context, w nethttp.ResponseWriter, url st
 	return int64(parsed.Usage.TotalTokens), nil
 }
 
-func (m *Module) serveStream(ctx context.Context, w nethttp.ResponseWriter, url string, body []byte) (int64, error) {
-	status, _, stream, err := m.backend.DoStream(ctx, url, body)
+func (m *Module) serveStream(ctx context.Context, w nethttp.ResponseWriter, url string, body []byte, model types.ModelID) (int64, error) {
+	status, _, stream, err := m.backendFor(model).DoStream(ctx, url, body)
 	if err != nil {
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("chat_completions: backend DoStream: %w", err)

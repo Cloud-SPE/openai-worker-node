@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/backendhttp"
+	"github.com/Cloud-SPE/openai-worker-node/internal/providers/metrics"
 	"github.com/Cloud-SPE/openai-worker-node/internal/service/modules"
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
 )
@@ -30,7 +31,8 @@ type request struct {
 
 // Module implements the audio_speech capability. Stateless.
 type Module struct {
-	backend backendhttp.Client
+	backend  backendhttp.Client
+	recorder metrics.Recorder
 }
 
 // New wires the module against the shared backend HTTP provider. TTS
@@ -40,11 +42,23 @@ func New(backend backendhttp.Client) *Module {
 	return &Module{backend: backend}
 }
 
+// WithRecorder injects the metrics recorder used to wrap the backend
+// client per-(capability, model) inside Serve. Optional.
+func (m *Module) WithRecorder(rec metrics.Recorder) *Module {
+	m.recorder = rec
+	return m
+}
+
 var _ modules.Module = (*Module)(nil)
 
 func (m *Module) Capability() types.CapabilityID { return Capability }
 func (m *Module) HTTPMethod() string             { return nethttp.MethodPost }
 func (m *Module) HTTPPath() string               { return HTTPPath }
+func (m *Module) Unit() string                   { return metrics.UnitCharacter }
+
+func (m *Module) backendFor(model types.ModelID) backendhttp.Client {
+	return backendhttp.WithMetrics(m.backend, m.recorder, string(Capability), string(model))
+}
 
 func (m *Module) ExtractModel(body []byte) (types.ModelID, error) {
 	var r request
@@ -81,11 +95,11 @@ func (m *Module) Serve(
 	w nethttp.ResponseWriter,
 	_ *nethttp.Request,
 	body []byte,
-	_ types.ModelID,
+	model types.ModelID,
 	backendURL string,
 ) (int64, error) {
 	targetURL := strings.TrimRight(backendURL, "/") + HTTPPath
-	status, backendHeaders, stream, err := m.backend.DoStream(ctx, targetURL, body)
+	status, backendHeaders, stream, err := m.backendFor(model).DoStream(ctx, targetURL, body)
 	if err != nil {
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("audio_speech: backend DoStream: %w", err)
