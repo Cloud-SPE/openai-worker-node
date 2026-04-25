@@ -24,12 +24,9 @@ Non-negotiables that shape every decision in this repo.
 ## Architectural decisions
 
 - [architecture.md](architecture.md) — `accepted` — layer stack, domains, providers, capability-module pattern
-
-## Planned
-
-- `capability-modules.md` — deep-dive on the module registration surface and payment-middleware contract. Planned with the first real module plan.
-- `metering.md` — per-capability work-unit computation and reconciliation semantics.
-- `streaming.md` — SSE proxying, backpressure, abort propagation.
+- [capability-modules.md](capability-modules.md) — `accepted` — module registration surface, payment-middleware contract, what a module owns vs. what the middleware owns
+- [metering.md](metering.md) — `accepted` — work-unit dimensions, three timing points (estimate / debit / reconcile), per-capability strategies
+- [streaming.md](streaming.md) — `accepted` — SSE / raw-byte framing, backpressure, abort propagation
 
 ## Conventions
 

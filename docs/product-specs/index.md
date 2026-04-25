@@ -4,18 +4,18 @@ The HTTP contract this worker exposes to `openai-livepeer-bridge`, and the gRPC 
 
 ## HTTP surface (this worker, for the bridge)
 
-| Method | Path | Paid? | Status | Spec |
-|---|---|---|---|---|
-| `GET` | `/health` | no | live | inline below |
-| `GET` | `/capabilities` | no | live | inline below |
-| `GET` | `/quote?sender=&capability=` | no | live | inline below |
-| `GET` | `/quotes?sender=` | no | live | inline below |
-| `POST` | `/v1/chat/completions` | yes | `chat_completions.md` (planned) |
-| `POST` | `/v1/embeddings` | yes | `embeddings.md` (planned) |
-| `POST` | `/v1/images/generations` | yes | `images.md` (planned) |
-| `POST` | `/v1/images/edits` | yes | `images.md` (planned) |
-| `POST` | `/v1/audio/speech` | yes | `audio_speech.md` (planned) |
-| `POST` | `/v1/audio/transcriptions` | yes | `audio_transcriptions.md` (planned) |
+| Method | Path                          | Paid? | Status | Spec                                                  |
+| ------ | ----------------------------- | ----- | ------ | ----------------------------------------------------- |
+| `GET`  | `/health`                     | no    | live   | inline below                                          |
+| `GET`  | `/capabilities`               | no    | live   | inline below                                          |
+| `GET`  | `/quote?sender=&capability=`  | no    | live   | inline below                                          |
+| `GET`  | `/quotes?sender=`             | no    | live   | inline below                                          |
+| `POST` | `/v1/chat/completions`        | yes   | live   | [chat_completions.md](chat_completions.md)            |
+| `POST` | `/v1/embeddings`              | yes   | live   | [embeddings.md](embeddings.md)                        |
+| `POST` | `/v1/images/generations`      | yes   | live   | [images.md](images.md)                                |
+| `POST` | `/v1/images/edits`            | yes   | live   | [images.md](images.md)                                |
+| `POST` | `/v1/audio/speech`            | yes   | live   | [audio_speech.md](audio_speech.md)                    |
+| `POST` | `/v1/audio/transcriptions`    | yes   | live   | [audio_transcriptions.md](audio_transcriptions.md)    |
 
 Each paid route accepts the base64-encoded `livepeer.payments.v1.Payment` proto in the `livepeer-payment` header. The request body and response body are OpenAI-compatible for the route's canonical endpoint.
 
@@ -25,19 +25,19 @@ Defined in [`../../../livepeer-payment-library/proto/livepeer/payments/v1/payee_
 
 Methods used:
 
-| RPC | When called |
-|---|---|
-| `ListCapabilities` | Once at startup; catalog cross-check. |
-| `GetQuote` | Not called by this worker (the bridge proxies through the worker's HTTP `/quote` to `PayeeDaemon.GetQuote`). |
-| `ProcessPayment` | Every paid request. |
-| `DebitBalance` | Every paid request (up-front + reconcile). |
+| RPC                  | When called                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `ListCapabilities`   | Once at startup (catalog cross-check) and once per request to `GET /quotes` (to enumerate capabilities for the response). |
+| `GetQuote`           | Once per `GET /quote` request, and once per advertised capability when serving `GET /quotes`.                            |
+| `ProcessPayment`     | Every paid request.                                                                                                      |
+| `DebitBalance`       | Every paid request (up-front + reconcile).                                                                               |
 
-Methods consumed indirectly (proxied by HTTP routes):
+Proxy mapping for the unpaid HTTP surface:
 
-| HTTP route | Proxies to |
-|---|---|
-| `GET /quote` | `PayeeDaemon.GetQuote` |
-| `GET /quotes` | `PayeeDaemon.ListCapabilities` → one `GetQuote` per capability |
+| HTTP route   | Proxies to                                                                       |
+| ------------ | -------------------------------------------------------------------------------- |
+| `GET /quote` | `PayeeDaemon.GetQuote`                                                           |
+| `GET /quotes`| `PayeeDaemon.ListCapabilities` → one `PayeeDaemon.GetQuote` per advertised capability |
 
 ## Error contract
 
