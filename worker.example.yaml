@@ -78,11 +78,12 @@ capabilities:
     work_unit: token
     models:
       - model: "gemma4:26b"
-        # 200 gwei / 1e9 = 2e-7 ETH per token. At ~$4000/ETH that's
-        # roughly $0.80 per 1M tokens — sets the per-node price floor;
-        # the bridge applies its own customer-facing markup via
-        # `starter` tier ($0.20 input / $0.60 output per 1M).
-        price_per_work_unit_wei: "200000000000"
+        # 1.25 mwei (= 1_250_000 wei) ≈ $0.005 per 1M tokens at $4k/ETH.
+        # Worker takes ~10% of the bridge customer "starter" tier
+        # ($0.05 input / $0.10 output per 1M, v2 rate card), giving
+        # the bridge ~10× margin to cover infra + redemption gas.
+        # Bump for premium models; lower for highly-shared ones.
+        price_per_work_unit_wei: "1250000"
         # Ollama's OpenAI-compatible endpoint. If Ollama runs on the
         # same docker host as this stack, use the host gateway IP
         # (172.17.0.1 on Linux) or attach Ollama to the same docker
@@ -91,38 +92,47 @@ capabilities:
         backend_url: "http://REPLACE_WITH_OLLAMA_HOST:11434"
 
   # ─── Other capabilities (uncomment when the backend is ready) ────────
+  # All worker prices below assume ~10× spread under the bridge's v2
+  # rate card (src/config/pricing.ts) so the bridge keeps a healthy
+  # margin for infra + redemption gas. Adjust to your hardware costs.
+  # Conversions assume $4000/ETH; tune up/down as ETH price moves.
   #
   # - capability: "openai:/v1/embeddings"
   #   work_unit: token
   #   models:
   #     - model: "text-embedding-3-small"
-  #       price_per_work_unit_wei: "100000000"
+  #       # 125 wei/token ≈ $0.0005/1M (bridge bills $0.005/1M).
+  #       price_per_work_unit_wei: "125"
   #       backend_url: "http://REPLACE_WITH_EMBEDDINGS_BACKEND:PORT"
   #
   # - capability: "openai:/v1/images/generations"
   #   work_unit: image_step_megapixel
   #   models:
   #     - model: "sdxl-turbo"
-  #       price_per_work_unit_wei: "500000000000"
+  #       # 50 mwei/MP-step (bridge bills $0.002/img for sdxl). Tune
+  #       # against actual GPU cost per image-step-megapixel.
+  #       price_per_work_unit_wei: "50000000"
   #       backend_url: "http://REPLACE_WITH_IMAGES_BACKEND:PORT"
   #
   # - capability: "openai:/v1/images/edits"
   #   work_unit: image_step_megapixel
   #   models:
   #     - model: "sdxl-edit"
-  #       price_per_work_unit_wei: "500000000000"
+  #       price_per_work_unit_wei: "50000000"
   #       backend_url: "http://REPLACE_WITH_IMAGES_BACKEND:PORT"
   #
   # - capability: "openai:/v1/audio/speech"
   #   work_unit: character
   #   models:
   #     - model: "tts-1"
-  #       price_per_work_unit_wei: "100000000"
+  #       # 125 wei/char ≈ $0.50/1M chars (bridge bills $5/1M).
+  #       price_per_work_unit_wei: "125"
   #       backend_url: "http://REPLACE_WITH_TTS_BACKEND:PORT"
   #
   # - capability: "openai:/v1/audio/transcriptions"
   #   work_unit: audio_second
   #   models:
   #     - model: "whisper-large-v3"
-  #       price_per_work_unit_wei: "100000000000"
+  #       # 1.25 mwei/sec ≈ $0.0003/min (bridge bills $0.003/min).
+  #       price_per_work_unit_wei: "1250000"
   #       backend_url: "http://REPLACE_WITH_STT_BACKEND:PORT"
