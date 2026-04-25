@@ -101,7 +101,11 @@ func run(args []string, stderr *os.File) int {
 	}
 
 	// 4. Providers.
-	tok := tokenizer.NewWordCount(133)
+	// Tiktoken with a word-count fallback. Tiktoken handles the
+	// gpt-3.5/4/4o families exactly; unknown models (Llama, Mistral,
+	// embedding-3-*) fall back to cl100k_base which is still much
+	// tighter than the word-count placeholder.
+	tok := tokenizer.NewTiktoken(tokenizer.NewWordCount(133))
 	backend := backendhttp.NewFetch()
 
 	// 5. Mux + handlers + modules.

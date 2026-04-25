@@ -1,8 +1,14 @@
 // Package tokenizer estimates token counts for billing purposes. The
-// interface is minimal (CountTokens(string) int) so different backends
-// (tiktoken for OpenAI-family models, sentencepiece for llama-family,
-// a simple word-split approximation for dev) can drop in without
-// touching modules.
+// interface (CountTokens, CountTokensForModel) lets different backends
+// drop in without touching modules:
+//
+//   - WordCount — naive word-split × 1.33 multiplier. Model-blind. Used
+//     as the dev default and as the last-resort fallback inside the
+//     tiktoken impl.
+//   - Tiktoken — backed by github.com/pkoukk/tiktoken-go. Resolves a
+//     per-model encoding for OpenAI-family models (gpt-3.5/4/4o/...) and
+//     falls back to cl100k_base for unknown models. This is the
+//     production default wired in cmd/openai-worker-node/main.go.
 //
 // # Why only an estimate matters
 //
@@ -13,10 +19,8 @@
 // the initial DebitBalance call. Over-estimation is safe — the
 // worker's over-debit policy absorbs the slack.
 //
-// # v1 default
+// # Choosing an implementation
 //
-// The default implementation is WordCount — it splits on whitespace
-// and applies a 1.33× multiplier (≈ OpenAI's words-to-tokens ratio).
-// Good enough for dev and for over-debiting production traffic; a
-// tiktoken-go-backed impl is a future provider swap.
+// Production:  NewTiktoken(NewWordCount(133))
+// Dev / tests: NewWordCount(133) (deterministic, no embedded data load)
 package tokenizer

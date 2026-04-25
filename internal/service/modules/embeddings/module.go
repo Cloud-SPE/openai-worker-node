@@ -61,12 +61,16 @@ func (m *Module) ExtractModel(body []byte) (types.ModelID, error) {
 //
 // Any other shape returns 0 (conservative; the backend will reject
 // the malformed request).
-func (m *Module) EstimateWorkUnits(body []byte, _ types.ModelID) (int64, error) {
+//
+// The model argument is forwarded to the tokenizer so per-family
+// encodings (tiktoken's text-embedding-3-* uses cl100k_base) can be
+// applied.
+func (m *Module) EstimateWorkUnits(body []byte, model types.ModelID) (int64, error) {
 	var r request
 	if err := json.Unmarshal(body, &r); err != nil {
 		return 0, fmt.Errorf("embeddings: parse request: %w", err)
 	}
-	return int64(m.countTokens(r.Input)), nil
+	return int64(m.countTokens(string(model), r.Input)), nil
 }
 
 // Serve posts the request to the backend verbatim and writes the
@@ -98,21 +102,21 @@ func (m *Module) Serve(
 }
 
 // countTokens walks whatever shape `input` happens to be and returns a
-// token-count estimate. Kept a method so a future per-model variant
-// can swap in without changing EstimateWorkUnits' body.
-func (m *Module) countTokens(input any) int {
+// token-count estimate. The model parameter routes to the tokenizer's
+// per-model encoding when one is known.
+func (m *Module) countTokens(model string, input any) int {
 	switch v := input.(type) {
 	case string:
-		return m.tok.CountTokens(v)
+		return m.tok.CountTokensForModel(model, v)
 	case []any:
 		// Two legal shapes: []string (wrapped as []any by json) or
 		// []int token IDs (also []any). For token IDs, len is the
-		// canonical count; for strings, sum CountTokens(each).
+		// canonical count; for strings, sum tokenize(each).
 		total := 0
 		for _, item := range v {
 			switch iv := item.(type) {
 			case string:
-				total += m.tok.CountTokens(iv)
+				total += m.tok.CountTokensForModel(model, iv)
 			case float64:
 				// JSON numbers decode to float64 through `any`. A
 				// token-id entry contributes exactly one token to

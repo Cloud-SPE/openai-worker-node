@@ -6,10 +6,19 @@ import "strings"
 // string. Used by chat_completions (sum of messages + max_tokens) and
 // embeddings (input tokens).
 //
+// Two methods:
+//
+//   - CountTokens(s)               — model-agnostic count. Used when
+//     the caller doesn't have a model or wants a generic estimate.
+//   - CountTokensForModel(model,s) — model-aware count. Implementations
+//     that know a per-model tokenizer (tiktoken for OpenAI families)
+//     should use it; implementations that don't may delegate.
+//
 // Implementations MUST be deterministic and safe for concurrent use —
-// modules call CountTokens on many goroutines against one instance.
+// modules call these on many goroutines against one instance.
 type Tokenizer interface {
 	CountTokens(s string) int
+	CountTokensForModel(model string, s string) int
 }
 
 // NewWordCount returns a naive tokenizer that splits on whitespace and
@@ -20,6 +29,9 @@ type Tokenizer interface {
 // / 0.75 ≈ words × 1.33.
 //
 // Empty input returns 0. Whitespace-only returns 0 (no tokens).
+//
+// Word-count is model-agnostic — `CountTokensForModel` ignores the
+// model argument and falls through to `CountTokens`.
 func NewWordCount(multiplierPct int) Tokenizer {
 	if multiplierPct <= 0 {
 		multiplierPct = 133
@@ -52,6 +64,10 @@ func (w *wordCount) CountTokens(s string) int {
 	}
 	// Round up: (words * mul + 99) / 100 — avoids silent under-count.
 	return (words*w.mul + 99) / 100
+}
+
+func (w *wordCount) CountTokensForModel(_ string, s string) int {
+	return w.CountTokens(s)
 }
 
 // isSep returns true for ASCII whitespace. Keeping this inline lets us

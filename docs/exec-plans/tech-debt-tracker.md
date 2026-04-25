@@ -38,10 +38,10 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** `runtime/http.deriveWorkID` hashes paymentBytes with sha256 for the daemon's work_id field. The daemon derives its own session key (RecipientRandHash) from the payment's ticket_params; using that directly in work_id would align worker/daemon on a single session identity and make log correlation trivial. Requires the middleware to unmarshal the Payment proto locally.
 **Resolution target:** Low priority — current scheme works; revisit if log correlation becomes a pain point.
 
-### real-tokenizer
+### ~~real-tokenizer~~ — resolved 2026-04-25
 **Opened:** 2026-04-24 (plan 0002)
 **Context:** `providers/tokenizer/NewWordCount` is a word-split + 1.33× multiplier placeholder. tiktoken-go / sentencepiece provider swap would tighten metering accuracy for models where over-debit drag becomes measurable.
-**Resolution target:** Low priority — over-debit policy absorbs the drift; swap when real production traffic shows a customer-visible impact.
+**Resolved:** New `tokenizer.NewTiktoken(fallback)` impl backed by `github.com/pkoukk/tiktoken-go` (`internal/providers/tokenizer/tiktoken.go`). Uses per-model encodings for OpenAI families (gpt-3.5/4/4o, embedding-3-*); unknown models fall through to cl100k_base; only initialization failure delegates to the word-count fallback. The `Tokenizer` interface gained `CountTokensForModel(model, s)`; `chat_completions` and `embeddings` modules now thread the model into their estimates. Wired in `cmd/openai-worker-node/main.go` as `NewTiktoken(NewWordCount(133))`. Tests: 5 new in `tiktoken_test.go` covering known model + blank model + unknown-model-default-fallback + per-model cache + concurrent safety; one new word-count test asserts the model-blind delegation invariant.
 
 ### ~~multipart-capability-handling~~ — resolved 2026-04-24
 **Opened:** 2026-04-24 (plans 0005, 0006)

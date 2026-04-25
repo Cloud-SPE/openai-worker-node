@@ -75,18 +75,20 @@ func (m *Module) ExtractModel(body []byte) (types.ModelID, error) {
 // stringified content and sum. Output-side: max_tokens if set, else
 // DefaultMaxCompletionTokens. The sum is what we reserve upfront.
 //
-// The model argument is reserved for future per-model tokenizer
-// dispatch (see docs/design-docs/ note on per-family tokenizers).
-// Currently unused — the tokenizer provider is global.
-func (m *Module) EstimateWorkUnits(body []byte, _ types.ModelID) (int64, error) {
+// The model argument is forwarded to the tokenizer so per-family
+// encodings (e.g. tiktoken's gpt-4o vs gpt-3.5 dictionaries) can be
+// applied. Tokenizers that ignore the model (e.g. WordCount) get the
+// same answer as the model-agnostic call.
+func (m *Module) EstimateWorkUnits(body []byte, model types.ModelID) (int64, error) {
 	var r request
 	if err := json.Unmarshal(body, &r); err != nil {
 		return 0, fmt.Errorf("chat_completions: parse request: %w", err)
 	}
+	mid := string(model)
 	input := 0
 	for _, msg := range r.Messages {
-		input += m.tok.CountTokens(msg.Role)
-		input += m.tok.CountTokens(messageContentString(msg.Content))
+		input += m.tok.CountTokensForModel(mid, msg.Role)
+		input += m.tok.CountTokensForModel(mid, messageContentString(msg.Content))
 	}
 	output := m.DefaultMaxCompletionTokens
 	if r.MaxTokens != nil && *r.MaxTokens > 0 {

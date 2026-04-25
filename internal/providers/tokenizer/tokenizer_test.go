@@ -60,3 +60,13 @@ func TestCountJoined(t *testing.T) {
 		t.Errorf("joined: got %d, want 3", got)
 	}
 }
+
+func TestWordCount_CountTokensForModel_IgnoresModel(t *testing.T) {
+	tok := NewWordCount(100)
+	a := tok.CountTokensForModel("gpt-4o", "one two three")
+	b := tok.CountTokensForModel("", "one two three")
+	c := tok.CountTokens("one two three")
+	if a != b || b != c || c != 3 {
+		t.Errorf("expected model-blind: got a=%d b=%d c=%d, want all 3", a, b, c)
+	}
+}
