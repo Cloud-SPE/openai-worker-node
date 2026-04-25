@@ -121,11 +121,13 @@ Same package split as service-registry: `internal/providers/metrics/` (Recorder 
 
 ### Package layout
 
-- `internal/providers/metrics/recorder.go` — `Recorder` interface; cardinality-cap wrapper; bucket presets (`DefaultBuckets`, `FastBuckets`); dual-histogram registration helper.
-- `internal/providers/metrics/noop.go` — default for tests + endpoint-off mode.
-- `internal/providers/metrics/prometheus.go` — `prometheus/client_golang` impl with custom `*prometheus.Registry` + standard collectors.
-- `internal/providers/metrics/names.go` — exported metric-name constants.
+- `internal/providers/metrics/recorder.go` — `Recorder` interface: a fat **domain-specific** surface (e.g. `IncRequest(capability, model, outcome string)`, `AddWorkUnits(capability, model, unit string, n int64)`, `ObserveDaemonRPC(method, outcome string, d time.Duration)`), NOT a generic `Counter/Gauge/Histogram` factory. Adding a metric means adding a method here and implementing it in every Recorder. Also exports label-value constants so call sites can't typo a label value.
+- `internal/providers/metrics/noop.go` — zero-cost noop. Every method is a no-op; `Handler()` returns 404 with a clear "metrics listener not enabled" message.
+- `internal/providers/metrics/prometheus.go` — `prometheus/client_golang` impl. Owns a custom `*prometheus.Registry` (not the global default) + standard collectors. Defines the bucket presets inline. Holds the `capVec` cardinality wrapper that drops new label tuples beyond `MaxSeriesPerMetric`; the wrapper exposes both `inc()` and `add(delta)` (worker-specific extension over service-registry's `inc()`-only shape, needed for cumulative `AddWorkUnits`). Dual-histogram for the unix-socket gRPC histogram is two distinct `*prometheus.HistogramVec` fields written from one `ObserveDaemonRPC` call.
+- `internal/providers/metrics/testhelpers.go` — `Counter` test helper.
 - `internal/runtime/metrics/listener.go` — TCP HTTP listener (`/metrics` + `/healthz`), graceful shutdown integrated with the worker lifecycle.
+
+Per-provider `metered.go` decorators are deferred to the next phase of work — see [`exec-plans/active/0008-metrics-phase-1.md`](../exec-plans/active/0008-metrics-phase-1.md).
 
 ### Decorators (per-provider, NOT centralized)
 
