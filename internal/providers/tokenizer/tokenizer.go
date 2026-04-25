@@ -1,6 +1,10 @@
 package tokenizer
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Cloud-SPE/openai-worker-node/internal/providers/metrics"
+)
 
 // Tokenizer produces a conservative token-count estimate for a UTF-8
 // string. Used by chat_completions (sum of messages + max_tokens) and
@@ -83,4 +87,42 @@ func isSep(r rune) bool {
 // module code reads naturally.
 func CountJoined(t Tokenizer, parts []string) int {
 	return t.CountTokens(strings.Join(parts, " "))
+}
+
+// WithMetrics wraps a Tokenizer so each count emits an
+// IncTokenizerCall. Latency is intentionally skipped — the tiktoken
+// hot path is sub-100µs and the design doc deliberately omits an
+// Observe for tokenizer.
+//
+// CountTokens has no model context; the model label is emitted as the
+// recorder's _unset_ sentinel for that path. CountTokensForModel
+// passes through the caller-supplied model.
+//
+// The tokenizer doesn't return errors — the underlying interface
+// returns int — so outcome is always OutcomeOK in this Pass A wrapper.
+// Future implementations that distinguish a tiktoken-vs-fallback path
+// may emit OutcomeFallback by extending the Tokenizer interface (Pass
+// B); the constants are already defined.
+func WithMetrics(t Tokenizer, rec metrics.Recorder) Tokenizer {
+	if rec == nil {
+		return t
+	}
+	return &meteredTokenizer{inner: t, rec: rec}
+}
+
+type meteredTokenizer struct {
+	inner Tokenizer
+	rec   metrics.Recorder
+}
+
+func (m *meteredTokenizer) CountTokens(s string) int {
+	n := m.inner.CountTokens(s)
+	m.rec.IncTokenizerCall("", metrics.OutcomeOK)
+	return n
+}
+
+func (m *meteredTokenizer) CountTokensForModel(model, s string) int {
+	n := m.inner.CountTokensForModel(model, s)
+	m.rec.IncTokenizerCall(model, metrics.OutcomeOK)
+	return n
 }
