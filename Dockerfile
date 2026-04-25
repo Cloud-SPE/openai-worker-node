@@ -24,12 +24,20 @@ WORKDIR /src
 COPY --from=library . /sibling/livepeer-payment-library
 
 COPY go.mod go.sum ./
+# rewrite-then-download primes the module cache before the full source
+# copy so we keep the layer cache hot when only Go source changes.
 RUN sed -i \
         's|replace github.com/Cloud-SPE/livepeer-payment-library => ../livepeer-payment-library|replace github.com/Cloud-SPE/livepeer-payment-library => /sibling/livepeer-payment-library|' \
         go.mod && \
     go mod download
 
 COPY . .
+
+# COPY . . above re-overlaid the original go.mod from the build context.
+# Re-apply the sed so `go build` sees the in-container replace path.
+RUN sed -i \
+        's|replace github.com/Cloud-SPE/livepeer-payment-library => ../livepeer-payment-library|replace github.com/Cloud-SPE/livepeer-payment-library => /sibling/livepeer-payment-library|' \
+        go.mod
 
 ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux go build \
