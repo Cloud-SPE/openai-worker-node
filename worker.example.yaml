@@ -77,12 +77,29 @@ capabilities:
   - capability: "openai:/v1/chat/completions"
     work_unit: token
     models:
+      # Pick the price that matches your inference engine's batching:
+      #
+      #   starter  ($0.05/$0.10) — heavily-batched vLLM (≥16 concurrent).
+      #     price_per_work_unit_wei: "1250000"   # ≈ $0.005/M tokens
+      #
+      #   standard ($0.15/$0.40) — moderate vLLM (~10 concurrent).
+      #     price_per_work_unit_wei: "5000000"   # ≈ $0.02/M tokens
+      #
+      #   pro      ($0.40/$1.20) — light vLLM (~3-4 concurrent).
+      #     price_per_work_unit_wei: "15000000"  # ≈ $0.06/M tokens
+      #
+      #   premium  ($2.50/$6.00) — single-user serving (Ollama, no batching),
+      #     fine-tunes, uncensored, niche. Targets ~$3/M worker take.
+      #     price_per_work_unit_wei: "75000000"  # ≈ $0.30/M tokens
+      #
+      # Conversions assume $4000/ETH and worker takes ~80% of the bridge
+      # customer rate. See bridge docs/design-docs/pricing-model.md
+      # "Worker operator economics" for the throughput/break-even math.
+      #
+      # Default below is the "starter" rate — switch up if your engine
+      # cannot batch (Ollama, single-user llama.cpp), or you'll lose
+      # money on every request.
       - model: "gemma4:26b"
-        # 1.25 mwei (= 1_250_000 wei) ≈ $0.005 per 1M tokens at $4k/ETH.
-        # Worker takes ~10% of the bridge customer "starter" tier
-        # ($0.05 input / $0.10 output per 1M, v2 rate card), giving
-        # the bridge ~10× margin to cover infra + redemption gas.
-        # Bump for premium models; lower for highly-shared ones.
         price_per_work_unit_wei: "1250000"
         # Ollama's OpenAI-compatible endpoint. If Ollama runs on the
         # same docker host as this stack, use the host gateway IP
@@ -90,6 +107,15 @@ capabilities:
         # network and use its container name. If Ollama runs on a
         # different VPS, use its private/public hostname.
         backend_url: "http://REPLACE_WITH_OLLAMA_HOST:11434"
+
+      # Example of a premium-tier model entry — uncensored fine-tune
+      # served single-user via Ollama (no batching). Drop in your own
+      # specialty model name and adjust price as your hardware/demand
+      # dictates.
+      #
+      # - model: "uncensored-llama-3-70b"
+      #   price_per_work_unit_wei: "75000000"   # ≈ $0.30/M tokens (premium tier)
+      #   backend_url: "http://REPLACE_WITH_OLLAMA_HOST:11434"
 
   # ─── Other capabilities (uncomment when the backend is ready) ────────
   # All worker prices below assume ~10× spread under the bridge's v2
