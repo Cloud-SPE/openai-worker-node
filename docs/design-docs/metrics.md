@@ -127,15 +127,13 @@ Same package split as service-registry: `internal/providers/metrics/` (Recorder 
 - `internal/providers/metrics/testhelpers.go` — `Counter` test helper.
 - `internal/runtime/metrics/listener.go` — TCP HTTP listener (`/metrics` + `/healthz`), graceful shutdown integrated with the worker lifecycle.
 
-Per-provider `metered.go` decorators are deferred to the next phase of work — see [`exec-plans/active/0008-metrics-phase-1.md`](../exec-plans/active/0008-metrics-phase-1.md).
+### Decorators (per-provider, inline `WithMetrics` constructor)
 
-### Decorators (per-provider, NOT centralized)
+Each provider package adds a `WithMetrics(inner, recorder, ...) <Interface>` constructor and a private wrapper struct **inside its existing source file** (e.g. `interface.go`, `tokenizer.go`), matching service-registry's pattern. Tests live in a separate `metered_test.go` per provider package. Production wiring is one wrap per provider in `cmd/openai-worker-node/main.go`.
 
-Each provider package owns a `metered.go` that wraps its own interface. Production wiring is one wrap per provider in `cmd/openai-worker-node/main.go`.
-
-- `internal/providers/payeedaemon/metered.go` → `livepeer_worker_daemon_rpc_calls_total{method,outcome}`, `livepeer_worker_daemon_rpc_duration_seconds{method,outcome}` + `_fast` (dual-histogram, unix-socket gRPC).
-- `internal/providers/backendhttp/metered.go` → `livepeer_worker_backend_requests_total{capability,model,outcome}`, `livepeer_worker_backend_request_duration_seconds{capability,model}`, `livepeer_worker_backend_errors_total{capability,model,error_class}`, `livepeer_worker_backend_last_success_timestamp_seconds{capability,model}`.
-- `internal/providers/tokenizer/metered.go` → `livepeer_worker_tokenizer_calls_total{model,outcome}`. Latency intentionally skipped — typically <100 µs.
+- `internal/providers/payeedaemon/interface.go` exports `WithMetrics(c Client, rec metrics.Recorder) Client` → `livepeer_worker_daemon_rpc_calls_total{method,outcome}`, `livepeer_worker_daemon_rpc_duration_seconds{method,outcome}` + `_fast` (dual-histogram, unix-socket gRPC).
+- `internal/providers/backendhttp/interface.go` exports `WithMetrics(c Client, rec metrics.Recorder, capability, model string) Client` → `livepeer_worker_backend_requests_total{capability,model,outcome}`, `livepeer_worker_backend_request_duration_seconds{capability,model}`, `livepeer_worker_backend_errors_total{capability,model,error_class}`, `livepeer_worker_backend_last_success_timestamp_seconds{capability,model}`. Takes `(capability, model)` at construction because the existing `Client` interface methods don't carry them — refactoring to a `Request` struct that carries the labels (eliminating per-pair wrapping) is a Phase 2 item; today each capability module wraps via a `backendFor(model)` helper per request.
+- `internal/providers/tokenizer/tokenizer.go` exports `WithMetrics(t Tokenizer, rec metrics.Recorder) Tokenizer` → `livepeer_worker_tokenizer_calls_total{model,outcome}`. Latency intentionally skipped — typically <100 µs.
 
 ### HTTP middleware (customer-facing surface)
 
@@ -147,7 +145,7 @@ Each provider package owns a `metered.go` that wraps its own interface. Producti
 
 ### Composition
 
-`cmd/openai-worker-node/main.go` is the only place that constructs the prom impl. When `--metrics-listen` is set: build the Recorder, start the listener, wrap each provider with its `metered.go` constructor, inject the Recorder into modules. When not set: noop everywhere; no listener.
+`cmd/openai-worker-node/main.go` is the only place that constructs the prom impl. When `--metrics-listen` is set: build the Recorder, start the listener, wrap `payeedaemon` and `tokenizer` globally via their `WithMetrics` constructors, and inject the Recorder into modules (which wrap `backendhttp` per-`(capability, model)` per request via `backendFor(model)`). When not set: noop everywhere; no listener.
 
 ## Cross-repo notes
 
