@@ -77,28 +77,37 @@ capabilities:
   - capability: "openai:/v1/chat/completions"
     work_unit: token
     models:
-      # Pick the price that matches your inference engine's batching:
+      # GROWTH-PHASE DEFAULTS — bridge keeps ~90 % of revenue while
+      # building a customer base; workers participate at a loss on the
+      # bet that volume grows. These rates DO NOT cover a consumer GPU's
+      # daily cost. Operators chasing break-even should override
+      # `price_per_work_unit_wei` per-model based on measured economics
+      # (see bridge docs/design-docs/pricing-model.md
+      # "Measurement and adjustment").
       #
-      #   starter  ($0.05/$0.10) — heavily-batched vLLM (≥16 concurrent).
-      #     price_per_work_unit_wei: "1250000"   # ≈ $0.005/M tokens
+      # Pick the entry whose customer-tier matches the model class:
       #
-      #   standard ($0.15/$0.40) — moderate vLLM (~10 concurrent).
-      #     price_per_work_unit_wei: "5000000"   # ≈ $0.02/M tokens
+      #   starter  customer $0.05/$0.10 per 1M, worker take ~$0.005/M
+      #     price_per_work_unit_wei: "1250000"
       #
-      #   pro      ($0.40/$1.20) — light vLLM (~3-4 concurrent).
-      #     price_per_work_unit_wei: "15000000"  # ≈ $0.06/M tokens
+      #   standard customer $0.15/$0.40 per 1M, worker take ~$0.02/M
+      #     price_per_work_unit_wei: "5000000"
       #
-      #   premium  ($2.50/$6.00) — single-user serving (Ollama, no batching),
-      #     fine-tunes, uncensored, niche. Targets ~$3/M worker take.
-      #     price_per_work_unit_wei: "75000000"  # ≈ $0.30/M tokens
+      #   pro      customer $0.40/$1.20 per 1M, worker take ~$0.06/M
+      #     price_per_work_unit_wei: "15000000"
       #
-      # Conversions assume $4000/ETH and worker takes ~80% of the bridge
-      # customer rate. See bridge docs/design-docs/pricing-model.md
-      # "Worker operator economics" for the throughput/break-even math.
+      #   premium  customer $2.50/$6.00 per 1M, worker take ~$0.30/M
+      #     (specialty / niche / fine-tune / single-user-serving)
+      #     price_per_work_unit_wei: "75000000"
       #
-      # Default below is the "starter" rate — switch up if your engine
-      # cannot batch (Ollama, single-user llama.cpp), or you'll lose
-      # money on every request.
+      # Break-even reference (RTX 5090 single-user, $12/day GPU cost):
+      # the worker needs ~$2/M (`price_per_work_unit_wei: "500000000"`)
+      # to cover hardware costs at premium-tier customer pricing. Set
+      # higher than the growth-phase default once measured demand
+      # justifies it; the bridge will keep routing as long as its margin
+      # against the matching customer tier is positive.
+      # Conversions assume $4000/ETH; multiply by current ETH price
+      # ratio to track market.
       - model: "gemma4:26b"
         price_per_work_unit_wei: "1250000"
         # Ollama's OpenAI-compatible endpoint. If Ollama runs on the
