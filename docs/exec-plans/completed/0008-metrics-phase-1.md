@@ -9,11 +9,13 @@ started: 2026-04-25
 completed: 2026-04-25
 ---
 
+> **Path note (2026-04-26):** Sibling-path references previously naming the standalone `livepeer-payment-library` and `livepeer-service-registry` repos were retargeted to their `livepeer-modules-project/payment-daemon` and `livepeer-modules-project/service-registry-daemon` successors after the modules-project consolidation. Substantive plan content unchanged.
+
 ## Goal
 
-Wire a `Recorder` provider (Prometheus impl backed by `prometheus/client_golang`), expose it on a configurable TCP `/metrics` listener, and instrument the request middleware + capability modules + backend HTTP client + payee-daemon gRPC client with the Phase 1 catalog from [`docs/design-docs/metrics.md`](../../design-docs/metrics.md). Mirrors the verified pattern in [`livepeer-service-registry`](../../../../livepeer-service-registry/docs/design-docs/observability.md) wholesale — same package layout, same flag names, same dual-histogram pattern, same cardinality cap.
+Wire a `Recorder` provider (Prometheus impl backed by `prometheus/client_golang`), expose it on a configurable TCP `/metrics` listener, and instrument the request middleware + capability modules + backend HTTP client + payee-daemon gRPC client with the Phase 1 catalog from [`docs/design-docs/metrics.md`](../../design-docs/metrics.md). Mirrors the verified pattern in [`livepeer-modules-project/service-registry-daemon`](../../../../livepeer-modules-project/service-registry-daemon/docs/design-docs/observability.md) wholesale — same package layout, same flag names, same dual-histogram pattern, same cardinality cap.
 
-This is the worker-side third of the cross-repo metrics rollout. Pairs with [`livepeer-payment-library/docs/exec-plans/0019-metrics-phase-1.md`](../../../../livepeer-payment-library/docs/exec-plans/0019-metrics-phase-1.md) and [`openai-livepeer-bridge/docs/exec-plans/active/0021-metrics-phase-1.md`](../../../../openai-livepeer-bridge/docs/exec-plans/active/0021-metrics-phase-1.md). Each ships independently — no compile-time cross-repo deps — but consistent label keys make the bridge's reconciliation panels work.
+This is the worker-side third of the cross-repo metrics rollout. Pairs with [`livepeer-modules-project/payment-daemon/docs/exec-plans/0019-metrics-phase-1.md`](../../../../livepeer-modules-project/payment-daemon/docs/exec-plans/0019-metrics-phase-1.md) and [`openai-livepeer-bridge/docs/exec-plans/active/0021-metrics-phase-1.md`](../../../../openai-livepeer-bridge/docs/exec-plans/active/0021-metrics-phase-1.md). Each ships independently — no compile-time cross-repo deps — but consistent label keys make the bridge's reconciliation panels work.
 
 Authoritative cross-repo conventions: [`../../../../livepeer-modules-conventions/metrics-conventions.md`](../../../../livepeer-modules-conventions/metrics-conventions.md).
 

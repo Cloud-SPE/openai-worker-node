@@ -32,8 +32,8 @@ Non-negotiables that shape every decision in this repo.
 ## Cross-repo
 
 - [`../../../livepeer-modules-conventions/metrics-conventions.md`](../../../livepeer-modules-conventions/metrics-conventions.md) — authoritative naming, label, bucket, cardinality, and provider-boundary rules shared across all repos in the fleet
-- [`../../../livepeer-service-registry/docs/design-docs/observability.md`](../../../livepeer-service-registry/docs/design-docs/observability.md) — reference implementation of the Recorder pattern this repo's metrics.md mirrors
-- [`../../../livepeer-payment-library/docs/design-docs/shared-yaml.md`](../../../livepeer-payment-library/docs/design-docs/shared-yaml.md) — the `worker.yaml` cross-repo contract this repo consumes
+- [`../../../livepeer-modules-project/service-registry-daemon/docs/design-docs/observability.md`](../../../livepeer-modules-project/service-registry-daemon/docs/design-docs/observability.md) — reference implementation of the Recorder pattern this repo's metrics.md mirrors
+- [`../../../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md`](../../../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md) — the `worker.yaml` cross-repo contract this repo consumes
 
 ## Conventions
 

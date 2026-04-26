@@ -1,6 +1,6 @@
 # AGENTS.md — openai-worker-node
 
-This repository hosts `openai-worker-node`: the HTTP adapter that sits between `openai-livepeer-bridge` and local inference backends (vLLM, diffusers, whisper, TTS, …). It validates payments via a sidecar [`livepeer-payment-daemon`](../livepeer-payment-library) in `receiver` mode, then forwards OpenAI-compatible requests to the configured backend for each (capability, model) pair.
+This repository hosts `openai-worker-node`: the HTTP adapter that sits between `openai-livepeer-bridge` and local inference backends (vLLM, diffusers, whisper, TTS, …). It validates payments via a sidecar [`livepeer-payment-daemon`](../livepeer-modules-project/payment-daemon) in `receiver` mode, then forwards OpenAI-compatible requests to the configured backend for each (capability, model) pair.
 
 **Humans steer. Agents execute. Scaffolding is the artifact.**
 
@@ -10,7 +10,7 @@ This repository hosts `openai-worker-node`: the HTTP adapter that sits between `
 - How to plan work: [PLANS.md](PLANS.md)
 - Product mental model: [PRODUCT_SENSE.md](PRODUCT_SENSE.md)
 - Harness philosophy: [docs/references/openai-harness.pdf](docs/references/openai-harness.pdf)
-- Cross-repo YAML contract: [livepeer-payment-library/docs/design-docs/shared-yaml.md](../livepeer-payment-library/docs/design-docs/shared-yaml.md)
+- Cross-repo YAML contract: [livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md](../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md)
 
 ## Knowledge base layout
 
@@ -53,7 +53,7 @@ Lints enforce this in CI. See [docs/design-docs/architecture.md](docs/design-doc
 
 1. **Payment is auth.** Every paid HTTP route MUST pass through the payment middleware before reaching a backend. The middleware calls `PayeeDaemon.ProcessPayment` + `DebitBalance`; skipping either is a security bug, not a style issue. Enforced by a custom lint on the capability-module registration surface.
 2. **Fail-closed on config.** `worker.yaml` parse errors, daemon/worker capability mismatch, or missing backend URLs cause refuse-to-start. No partial-start fallbacks.
-3. **Shared YAML is authoritative.** This repo does not define a YAML schema. It consumes [`livepeer-payment-library/config/sharedyaml`](../livepeer-payment-library/config/sharedyaml) as a Go module dep. Do not copy-paste the types.
+3. **Shared YAML is authoritative.** This repo does not define a YAML schema. It consumes [`livepeer-modules-project/payment-daemon/config/sharedyaml`](../livepeer-modules-project/payment-daemon/config/sharedyaml) as a Go module dep. Do not copy-paste the types.
 4. **Providers boundary.** No cross-cutting dependency is imported outside `internal/providers/`.
 5. **No code without a plan.** Non-trivial work starts with an entry in `docs/exec-plans/active/`.
 6. **Test coverage ≥ 75% per package.** CI fails below this threshold. See `core-beliefs.md`.
@@ -67,5 +67,5 @@ Lints enforce this in CI. See [docs/design-docs/architecture.md](docs/design-doc
 | What's in flight? | `docs/exec-plans/active/` |
 | What HTTP routes does it serve? | `docs/product-specs/index.md` |
 | How do capability modules work? | `docs/design-docs/capability-modules.md` (planned) |
-| What's the YAML contract? | `../livepeer-payment-library/docs/design-docs/shared-yaml.md` |
+| What's the YAML contract? | `../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md` |
 | Known debt? | `docs/exec-plans/tech-debt-tracker.md` |

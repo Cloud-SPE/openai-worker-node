@@ -10,7 +10,7 @@ What `openai-worker-node` exposes on `/metrics` and why each metric exists. Ever
 
 **Cross-repo conventions**: [`../../../livepeer-modules-conventions/metrics-conventions.md`](../../../livepeer-modules-conventions/metrics-conventions.md). This doc covers worker-specific instantiation; the conventions doc covers cross-repo rules (naming, label keys, bucket presets, cardinality cap, dual-histogram, audit-log philosophy, provider boundary).
 
-The pattern mirrors [`livepeer-service-registry`'s observability](../../../livepeer-service-registry/docs/design-docs/observability.md) (status `verified`) — same package layout, same flag names, same `livepeer_<repo>_*` prefix.
+The pattern mirrors [`livepeer-modules-project/service-registry-daemon`'s observability](../../../livepeer-modules-project/service-registry-daemon/docs/design-docs/observability.md) (status `verified`) — same package layout, same flag names, same `livepeer_<repo>_*` prefix.
 
 Phases:
 

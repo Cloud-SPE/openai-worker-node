@@ -94,10 +94,10 @@ Reconciliation direction is over-debit only (user decision). If actual < est the
 ## Cross-repo contracts
 
 ### Shared YAML
-Single file, bind-mounted into both the daemon and this worker. Schema and parsing live in `livepeer-payment-library/config/sharedyaml` and are imported here as a Go module. See [`../livepeer-payment-library/docs/design-docs/shared-yaml.md`](../livepeer-payment-library/docs/design-docs/shared-yaml.md).
+Single file, bind-mounted into both the daemon and this worker. Schema and parsing live in `livepeer-modules-project/payment-daemon/config/sharedyaml` and are imported here as a Go module. See [`../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md`](../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md).
 
 ### Payee daemon gRPC
-Generated from `livepeer-payment-library/proto/livepeer/payments/v1/`. This repo consumes the `PayeeDaemonClient` — it does not define or implement the service.
+Generated from `livepeer-modules-project/payment-daemon/proto/livepeer/payments/v1/`. This repo consumes the `PayeeDaemonClient` — it does not define or implement the service.
 
 Startup sequence:
 1. Parse `--config` → in-memory `Config`.

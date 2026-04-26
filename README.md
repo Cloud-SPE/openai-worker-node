@@ -1,6 +1,6 @@
 # openai-worker-node
 
-The payee-side HTTP adapter for Livepeer BYOC payment. Sits in front of local OpenAI-compatible inference backends (vLLM, diffusers, whisper, TTS, …), validates payment via a co-located [`livepeer-payment-daemon`](../livepeer-payment-library), and serves paid requests from [`openai-livepeer-bridge`](../openai-livepeer-bridge).
+The payee-side HTTP adapter for Livepeer BYOC payment. Sits in front of local OpenAI-compatible inference backends (vLLM, diffusers, whisper, TTS, …), validates payment via a co-located [`livepeer-payment-daemon`](../livepeer-modules-project/payment-daemon), and serves paid requests from [`openai-livepeer-bridge`](../openai-livepeer-bridge).
 
 ## Status
 
@@ -38,8 +38,8 @@ Video generation, FFMPEG live transcoding, and custom workloads are backlog.
 
 ## Cross-repo contracts
 
-- **YAML schema:** [`livepeer-payment-library/docs/design-docs/shared-yaml.md`](../livepeer-payment-library/docs/design-docs/shared-yaml.md)
-- **gRPC API:** [`livepeer-payment-library/proto/livepeer/payments/v1/payee_daemon.proto`](../livepeer-payment-library/proto/livepeer/payments/v1/payee_daemon.proto)
+- **YAML schema:** [`livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md`](../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md)
+- **gRPC API:** [`livepeer-modules-project/payment-daemon/proto/livepeer/payments/v1/payee_daemon.proto`](../livepeer-modules-project/payment-daemon/proto/livepeer/payments/v1/payee_daemon.proto)
 
 ## License
 

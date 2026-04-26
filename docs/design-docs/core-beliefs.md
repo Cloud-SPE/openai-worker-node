@@ -26,7 +26,7 @@ Config parse error → refuse to start. Daemon/worker catalog mismatch → refus
 
 ## 5. Shared YAML comes from the library, not from here
 
-This repo consumes `livepeer-payment-library/config/sharedyaml` as a Go module dependency. We do not define a YAML schema. Drift between what the daemon parses and what the worker parses is the exact failure mode this dependency exists to prevent.
+This repo consumes `livepeer-modules-project/payment-daemon/config/sharedyaml` as a Go module dependency. We do not define a YAML schema. Drift between what the daemon parses and what the worker parses is the exact failure mode this dependency exists to prevent.
 
 ## 6. The providers boundary is the only cross-cutting boundary
 

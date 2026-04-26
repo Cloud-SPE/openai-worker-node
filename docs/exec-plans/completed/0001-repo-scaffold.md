@@ -8,22 +8,24 @@ opened: 2026-04-24
 completed: 2026-04-24
 ---
 
+> **Path note (2026-04-26):** Sibling-path references previously naming the standalone `livepeer-payment-library` repo were retargeted to its `livepeer-modules-project/payment-daemon` successor after the modules-project consolidation. Substantive plan content unchanged.
+
 ## Goal
 
 Lay down the full scaffolding for `openai-worker-node` before any implementation code is written: directory structure, layer placeholders, lints, CI, initial design-docs, and supporting tooling. The repo should be ready for `0002-chat-completions-module` to start writing code inside a well-defined frame.
 
-This is a new repo; the harness layout mirrors `livepeer-payment-library` and `openai-livepeer-bridge` so an agent familiar with either sibling can navigate this one on arrival.
+This is a new repo; the harness layout mirrors `livepeer-modules-project/payment-daemon` and `openai-livepeer-bridge` so an agent familiar with either sibling can navigate this one on arrival.
 
 ## Non-goals
 
 - No capability-module code. That begins with `0002-chat-completions-module`.
 - No payment-middleware implementation. That is `0003-payment-middleware`.
 - No lints beyond stubs. The custom lints (`layer-check`, `payment-middleware-check`) are placeholder READMEs; full AST implementations are deferred and tracked as tech debt.
-- No Go module implementation of `sharedyaml` parse. Consumed from `livepeer-payment-library` once that package exists under `0018-per-capability-pricing`.
+- No Go module implementation of `sharedyaml` parse. Consumed from `livepeer-modules-project/payment-daemon` once that package exists under `0018-per-capability-pricing`.
 
 ## Cross-repo dependencies
 
-- [`livepeer-payment-library` `0018-per-capability-pricing`](../../../../livepeer-payment-library/docs/exec-plans/active/0018-per-capability-pricing.md)
+- [`livepeer-modules-project/payment-daemon` `0018-per-capability-pricing`](../../../../livepeer-modules-project/payment-daemon/docs/exec-plans/active/0018-per-capability-pricing.md)
   - Must land the `config/sharedyaml` public Go package.
   - Must land the `ListCapabilities` RPC + per-model pricing in `GetQuoteResponse`.
   - This plan's "wire go.mod dep" step blocks on both.
@@ -51,7 +53,7 @@ This is a new repo; the harness layout mirrors `livepeer-payment-library` and `o
 
 ### 2026-04-24 — Mirror the library's Go module path style
 
-Module path `github.com/Cloud-SPE/openai-worker-node` matches `github.com/Cloud-SPE/livepeer-payment-library`. Keeps the go.mod dep on the library straightforward and groups the payment-ecosystem repos under one org.
+Module path `github.com/Cloud-SPE/openai-worker-node` matches `github.com/Cloud-SPE/livepeer-modules-project/payment-daemon`. Keeps the go.mod dep on the library straightforward and groups the payment-ecosystem repos under one org.
 
 ### 2026-04-24 — `sharedyaml` is a go.mod dep, not a submodule or copy
 
@@ -90,4 +92,4 @@ Scaffold landed in a single agent session:
 
 Outstanding before closing this plan:
 
-- `livepeer-payment-library` is wired via a `replace` directive in `go.mod` (local sibling checkout). The `require` line appears automatically via `go mod tidy` once a source file imports from the library; until then the dep stays latent. Library plan 0018 landed as commit `7f81543`, unblocking this.
+- `livepeer-modules-project/payment-daemon` is wired via a `replace` directive in `go.mod` (local sibling checkout). The `require` line appears automatically via `go mod tidy` once a source file imports from the library; until then the dep stays latent. Library plan 0018 landed as commit `7f81543`, unblocking this.

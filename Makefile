@@ -22,21 +22,22 @@ doc-lint:
 # Override tag via DOCKER_TAG=... to publish-name it (e.g.
 # `make docker-build DOCKER_TAG=v0.8.10`).
 #
-# `--build-context library=...` feeds the sibling livepeer-payment-library
-# repo into the Dockerfile's named build context. Required while go.mod
-# carries the local `replace` directive; goes away once the library
-# tags a release.
+# `--build-context payment-daemon=...` feeds the sibling
+# livepeer-modules-project/payment-daemon module into the Dockerfile's
+# named build context. Required while go.mod carries the local
+# `replace` directive; goes away once the module tags a release.
 DOCKER_TAG ?= dev
 DOCKER_IMAGE ?= tztcloud/livepeer-openai-worker-node
-# Note: do NOT call this LIBRARY_PATH — that name collides with a
-# common env var (CUDA toolchains export it) and the override would
-# silently retarget the build context.
-LIBRARY_CONTEXT ?= ../livepeer-payment-library
+# Note: do NOT name this *_PATH (e.g. PAYMENT_DAEMON_PATH) — the *_PATH
+# suffix collides with common env vars (CUDA toolchains export
+# LIBRARY_PATH) and an override would silently retarget the build
+# context.
+PAYMENT_DAEMON_CONTEXT ?= ../livepeer-modules-project/payment-daemon
 
 docker-build:
 	docker build \
 		--build-arg VERSION=$(DOCKER_TAG) \
-		--build-context library=$(LIBRARY_CONTEXT) \
+		--build-context payment-daemon=$(PAYMENT_DAEMON_CONTEXT) \
 		-t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 
 docker-push:

@@ -3,7 +3,7 @@
 # /etc/livepeer/worker.yaml.
 #
 # Production deployments will:
-#   - Drop the `additional_contexts` block (the library will be a
+#   - Drop the `additional_contexts` block (the module will be a
 #     tagged Go module, not a sibling checkout).
 #   - Replace the fake broker mode with real `--chain-rpc` +
 #     `--keystore-path`.
@@ -19,9 +19,9 @@
 services:
   payment-daemon:
     # Built from the sibling repo. Assumes you've checked out
-    # livepeer-payment-library as a sibling of openai-worker-node.
+    # livepeer-modules-project as a sibling of openai-worker-node.
     build:
-      context: ../livepeer-payment-library
+      context: ../livepeer-modules-project/payment-daemon
     command:
       - "--mode=receiver"
       - "--socket=/var/run/livepeer/payment-daemon.sock"
@@ -38,11 +38,11 @@ services:
     build:
       # Default context = this repo.
       context: .
-      # Expose the sibling library repo to the build. Required while
-      # the go.mod has a `replace` directive; drops out once library
-      # is tagged.
+      # Expose the sibling payment-daemon module to the build. Required
+      # while the go.mod has a `replace` directive; drops out once the
+      # module is tagged.
       additional_contexts:
-        library: ../livepeer-payment-library
+        payment-daemon: ../livepeer-modules-project/payment-daemon
     command:
       - "--config=/etc/livepeer/worker.yaml"
       - "--log-level=info"

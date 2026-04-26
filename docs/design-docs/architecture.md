@@ -18,7 +18,7 @@ last-reviewed: 2026-04-24
 ├─────────────────────────────────────────────────────────┤
 │  repo/              (intentionally thin in v1)          │  ← stateless adapter; only health-snapshot cache lives here
 ├─────────────────────────────────────────────────────────┤
-│  config/            validated structs                   │  ← may import types, imports livepeer-payment-library/config/sharedyaml
+│  config/            validated structs                   │  ← may import types, imports livepeer-modules-project/payment-daemon/config/sharedyaml
 ├─────────────────────────────────────────────────────────┤
 │  types/             pure data                           │  ← imports nothing in internal/
 └─────────────────────────────────────────────────────────┘

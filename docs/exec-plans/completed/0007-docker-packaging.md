@@ -8,6 +8,8 @@ opened: 2026-04-24
 completed: 2026-04-24
 ---
 
+> **Path note (2026-04-26):** Sibling-path references previously naming the standalone `livepeer-payment-library` repo were retargeted to its `livepeer-modules-project/payment-daemon` successor after the modules-project consolidation. Substantive plan content unchanged.
+
 ## Goal
 
 Ship a container image for `openai-worker-node` and a `compose.yaml` that runs it alongside `livepeer-payment-daemon`, with the shared `worker.yaml` bind-mounted into both containers. Operators should be able to `git clone` + `docker compose up` to get a working (fake-broker dev mode) worker on their laptop within minutes.
@@ -26,8 +28,8 @@ Ship a container image for `openai-worker-node` and a `compose.yaml` that runs i
 
 - [x] `Dockerfile` — multi-stage Go build → `gcr.io/distroless/static:nonroot`. Uses `-tags 'netgo osusergo'` for a pure-Go static binary. Rewrites the local `replace` directive to an in-container path so builds work while the library is still a sibling checkout.
 - [x] `compose.yaml` at repo root:
-  - `payment-daemon` service built from `../livepeer-payment-library`. Flags: `--mode=receiver`, unix-socket under a shared named volume, BoltDB state, `--config=/etc/livepeer/worker.yaml`.
-  - `openai-worker` service built from `.`, with `additional_contexts: library: ../livepeer-payment-library` for the `replace` directive's sibling access.
+  - `payment-daemon` service built from `../livepeer-modules-project/payment-daemon`. Flags: `--mode=receiver`, unix-socket under a shared named volume, BoltDB state, `--config=/etc/livepeer/worker.yaml`.
+  - `openai-worker` service built from `.`, with `additional_contexts: library: ../livepeer-modules-project/payment-daemon` for the `replace` directive's sibling access.
   - `worker.yaml` bind-mounted read-only into BOTH services at `/etc/livepeer/worker.yaml`.
   - Unix-socket volume shared (read-only from the worker side).
 - [x] `docs/operations/running-with-docker.md` — prerequisites, first-run walk-through (fake broker dev mode), production-mode notes, upgrade path once the library ships a tagged release.
@@ -45,7 +47,7 @@ Submodules would require operators to `git submodule update --init` before every
 
 ### 2026-04-24 — sed-rewrite the replace path inside the Dockerfile
 
-Keeping the local `../livepeer-payment-library` in go.mod means developers can run `go build ./...` on the host without any extra flags. The Dockerfile's sed rewrite swaps it to `/sibling/livepeer-payment-library` only inside the build container. One line, no external tooling, self-documenting.
+Keeping the local `../livepeer-modules-project/payment-daemon` in go.mod means developers can run `go build ./...` on the host without any extra flags. The Dockerfile's sed rewrite swaps it to `/sibling/livepeer-modules-project/payment-daemon` only inside the build container. One line, no external tooling, self-documenting.
 
 ## Open questions
 

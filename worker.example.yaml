@@ -4,7 +4,7 @@
 # openai-worker-node. Both parse independently at startup; mismatch is
 # a fail-closed condition.
 #
-# Contract: livepeer-payment-library/docs/design-docs/shared-yaml.md
+# Contract: livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md
 #
 # Copy this file to worker.yaml at the repo root (gitignored), edit the
 # four REPLACE_* placeholders, and let compose.prod.yaml mount it at

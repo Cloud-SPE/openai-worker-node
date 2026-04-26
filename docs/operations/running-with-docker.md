@@ -7,10 +7,10 @@ alongside `livepeer-payment-daemon` (receiver mode), sharing one
 ## Prerequisites
 
 - Docker 24+ with Compose v2.
-- A sibling checkout of `livepeer-payment-library` (required until the
+- A sibling checkout of `livepeer-modules-project/payment-daemon` (required until the
   library tags a release; the replace directive in `go.mod` and the
-  `additional_contexts: library: ../livepeer-payment-library` in
-  `compose.yaml` assume it's at `../livepeer-payment-library`).
+  `additional_contexts: library: ../livepeer-modules-project/payment-daemon` in
+  `compose.yaml` assume it's at `../livepeer-modules-project/payment-daemon`).
 
 ## First run (dev mode, fake broker)
 
@@ -152,7 +152,7 @@ sensitive.
 
 When the library tags a release:
 
-1. Bump `require github.com/Cloud-SPE/livepeer-payment-library v…`
+1. Bump `require github.com/Cloud-SPE/livepeer-modules-project/payment-daemon v…`
    in `go.mod`; remove the `replace` directive.
 2. Remove `additional_contexts: library: …` from `compose.yaml`.
 3. `docker compose build --no-cache && docker compose up -d`.

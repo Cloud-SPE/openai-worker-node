@@ -97,4 +97,4 @@ A module that fails at step 10 may have already written response bytes — the m
 
 - Per-capability metering: [metering.md](metering.md).
 - Streaming framing: [streaming.md](streaming.md).
-- Cross-repo capability-string namespace: [`../../../livepeer-payment-library/docs/design-docs/shared-yaml.md`](../../../livepeer-payment-library/docs/design-docs/shared-yaml.md).
+- Cross-repo capability-string namespace: [`../../../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md`](../../../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md).
