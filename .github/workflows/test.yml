@@ -8,11 +8,72 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
+
       - name: build
         run: go build ./...
-      - name: test
-        run: go test -race ./...
+
+      - name: go test -race + coverage profile
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: coverage gate (>= 75% per package with source)
+        # Inline awk against coverage.out (mode line + per-block lines).
+        # coverage.out format: file:start.col,end.col numStatements covered
+        # Bucket per-package; fail if any package's covered/total < 75%.
+        # Sibling repos use a Go-tool analyzer (lint/coverage-gate); we
+        # keep this inline to avoid carrying the tool until cross-cutting
+        # coverage logic earns its own home.
+        #
+        # EXEMPT contains explicit package paths under the 75% bar with
+        # their justification tracked in docs/exec-plans/tech-debt-tracker.md
+        # (search "coverage-gate-exemptions"). Per core-beliefs.md
+        # invariant 6, exemptions are listed with a written reason and a
+        # tracking entry — no implicit waivers.
+        env:
+          EXEMPT: |
+            github.com/Cloud-SPE/openai-worker-node/internal/providers/payeedaemon
+            github.com/Cloud-SPE/openai-worker-node/internal/providers/backendhttp
+            github.com/Cloud-SPE/openai-worker-node/internal/config
+            github.com/Cloud-SPE/openai-worker-node/lint/payment-middleware-check
+        run: |
+          awk -v threshold=75 -v exempt_raw="$EXEMPT" '
+            BEGIN {
+              n_exempt = split(exempt_raw, parts, /\n+/)
+              for (i = 1; i <= n_exempt; i++) {
+                gsub(/^[ \t]+|[ \t]+$/, "", parts[i])
+                if (parts[i] != "") exempt[parts[i]] = 1
+              }
+            }
+            NR == 1 { next }
+            {
+              split($1, a, ":")
+              file = a[1]
+              n = split(file, b, "/")
+              pkg = b[1]
+              for (i = 2; i < n; i++) pkg = pkg "/" b[i]
+              total[pkg] += $2
+              if ($3 != "0") cov[pkg] += $2
+            }
+            END {
+              fail = 0
+              for (pkg in total) {
+                pct = total[pkg] > 0 ? (cov[pkg] / total[pkg]) * 100 : 0
+                tag = pkg in exempt ? "EXEMPT" : ""
+                printf "%-80s %6.1f%%  %s\n", pkg, pct, tag
+                if (pct < threshold && !(pkg in exempt)) {
+                  printf "  ::error::%s coverage %.1f%% < %d%%\n", pkg, pct, threshold
+                  fail = 1
+                }
+              }
+              exit fail
+            }
+          ' coverage.out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.out

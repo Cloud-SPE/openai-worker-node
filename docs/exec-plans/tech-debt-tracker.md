@@ -58,6 +58,21 @@ Append-only log of known debt. Mark resolved entries with strikethrough and a re
 **Context:** The worker exposed `/health` + `/capabilities` only. Operators had no Prometheus surface — no request throughput, no work-units counter, no daemon-RPC latency, no backend health, no payment-rejection breakdown. The bridge's margin reconciliation needs `livepeer_worker_work_units_total` to join against revenue.
 **Resolved:** Phase 1 metrics rolled out across two passes. Pass A (commits `413eaa5`, `ed9d97e`, `ce30419`) shipped the scaffold: `Recorder` interface (`internal/providers/metrics`), Prometheus + Noop impls, TCP listener (`internal/runtime/metrics`), and three `WithMetrics(...)` decorators on payeedaemon, backendhttp (per-(capability, model)), tokenizer. Pass B (this commit) activated the scaffold: `--metrics-listen` + `--metrics-max-series-per-metric` flags, composition root in `cmd/openai-worker-node/main.go`, Recorder injection through the `Mux` into `paymentMiddleware` (request lifecycle, capacity rejection, payment rejection, inflight gauge, work units), `Unit() string` on every capability module, and per-call backend wrapping inside each module's Serve. `.env.example`, `compose.yaml`, `compose.prod.yaml` and `docs/operations/running-with-docker.md` updated. Phase 2 (streaming TTFT, reconcile-delta histograms) tracked separately.
 
+### coverage-gate-exemptions
+**Opened:** 2026-04-27 (plan 0009)
+**Context:** Plan 0009 enforces `core-beliefs.md` invariant 6 (≥75% coverage per package) as a CI gate via `.github/workflows/test.yml`. At gate-introduction time, four packages sit below 75% and are explicitly exempted in the workflow's `EXEMPT` env var. Each is a separate small effort to address — bundling them into 0009 would have explode-bucket-3'd the plan. Per the invariant's wording ("exempt only when explicitly listed with a written reason and a tracking issue"), the exemption is recorded here.
+
+Exempted packages and reasons:
+
+| Package | Coverage at gate-introduction | Reason |
+|---|---|---|
+| `internal/providers/payeedaemon` | 63.1% | Production gRPC client; remaining uncovered surface is connection-error / Dial paths. Needs a real gRPC server (or richer mock) to exercise. |
+| `internal/providers/backendhttp` | 66.7% | HTTP client wrapper; uncovered paths are streaming-error and non-2xx body propagation. Needs httptest fixtures. |
+| `internal/config` | 72.5% | Config parsing + projection. Uncovered paths are mostly `Validate` error branches; closing the gap is mechanical fixture work. |
+| `lint/payment-middleware-check` | 73.3% | Custom AST analyzer. Uncovered paths are degenerate-AST safety branches. Hard to construct synthetic ASTs that hit them. |
+
+**Resolution target:** One small dedicated plan per package (or one plan covering all four). Plan 0010 is the natural successor. Any package brought above 75% should be removed from the `EXEMPT` env var in `.github/workflows/test.yml` in the same PR that adds the tests.
+
 ## Resolved
 
 _None yet._

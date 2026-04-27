@@ -40,7 +40,8 @@ Lints enforce this in CI. See [docs/design-docs/architecture.md](docs/design-doc
 
 - Go 1.25+
 - `buf` for consuming generated `livepeer.payments.v1.*` protos from the library
-- `golangci-lint` + custom lints in `lint/`
+- `golangci-lint` v2.11+ (v1.x is unsupported — export-data format mismatch with Go 1.25 stdlib) + custom lints in `lint/`
+- `govulncheck` (CI-only, informational)
 
 ## Commands
 

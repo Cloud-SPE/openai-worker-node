@@ -64,12 +64,12 @@ func FormField(body []byte, name string) (string, bool, error) {
 			return "", false, fmt.Errorf("multipartutil: read part: %w", err)
 		}
 		if part.FormName() != name {
-			part.Close()
+			_ = part.Close()
 			continue
 		}
 		limited := io.LimitReader(part, 64<<10)
 		buf, rerr := io.ReadAll(limited)
-		part.Close()
+		_ = part.Close()
 		if rerr != nil {
 			return "", false, fmt.Errorf("multipartutil: read field %q: %w", name, rerr)
 		}

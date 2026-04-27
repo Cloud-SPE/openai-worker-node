@@ -1,0 +1,33 @@
+# Dependabot config for openai-worker-node.
+#
+# Two ecosystems:
+#   - gomod  — module deps. Grouped so the high-blast-radius bumps
+#              (grpc + protobuf, prometheus client) land as a single
+#              reviewable PR rather than a stream of single-package PRs.
+#   - github-actions — workflow action pins. Sibling repos in
+#                      livepeer-modules-project don't manage this
+#                      ecosystem; this repo intentionally leads after
+#                      plan 0009 caught checkout/setup-go/golangci-lint
+#                      multiple majors stale.
+
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      grpc-and-protobuf:
+        patterns:
+          - "google.golang.org/grpc*"
+          - "google.golang.org/protobuf"
+      prometheus:
+        patterns:
+          - "github.com/prometheus/*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

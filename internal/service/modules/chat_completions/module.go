@@ -165,7 +165,7 @@ func (m *Module) serveStream(ctx context.Context, w nethttp.ResponseWriter, url 
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("chat_completions: backend DoStream: %w", err)
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

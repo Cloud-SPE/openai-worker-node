@@ -104,7 +104,7 @@ func (m *Module) Serve(
 		nethttp.Error(w, "backend error", nethttp.StatusBadGateway)
 		return 0, fmt.Errorf("audio_speech: backend DoStream: %w", err)
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	// Relay the backend's Content-Type if present (handles
 	// audio/mpeg vs audio/wav vs audio/opus vs audio/flac across
