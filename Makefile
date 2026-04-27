@@ -20,7 +20,7 @@ doc-lint:
 
 # Build the container image as tztcloud/livepeer-openai-worker-node:dev.
 # Override tag via DOCKER_TAG=... to publish-name it (e.g.
-# `make docker-build DOCKER_TAG=v0.8.10`).
+# `make docker-build DOCKER_TAG=v1.1.2`).
 #
 # `--build-context payment-daemon=...` feeds the sibling
 # livepeer-modules-project/payment-daemon module into the Dockerfile's
