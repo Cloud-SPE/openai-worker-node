@@ -26,13 +26,18 @@ Restore CI lint health and modernise the CI scaffold in one bundled PR:
 
 ## Cross-repo dependencies
 
+> **Correction (2026-04-27 — post-execution):** The sibling state described below was misread at planning time. The actual canonical CI for `livepeer-modules-project` lives in the **root** `.github/workflows/ci.yml` (consolidated via their plan 0008), not in the per-module `<module>/.github/workflows/lint.yml` files I originally read. See the Decisions log entry "Cross-repo audit retract" for the corrected state. The plan still executed correctly — the lint pin bump was the right call regardless of sibling state — but the framing of "lead-and-drift on identical pins" was wrong. Siblings already pin `golangci-lint-action@v8` with `version: latest` and have a v2-schema `.golangci.yml` + a Dependabot github-actions ecosystem. The genuine deltas vs siblings are only `actions/setup-go@v5` and `actions/checkout@v4`, both of which their existing Dependabot will handle.
+
+(Original framing, retained for history:)
 Sibling `livepeer-modules-project` (payment-daemon, service-registry-daemon, chain-commons, protocol-daemon) currently pin **identical** versions to ours: `go 1.25.0`, `golangci-lint v1.64.8`, `checkout@v4`, `setup-go@v5`, `golangci-lint-action@v6`. The `lint.yml` "match sibling" comment in this repo mirrors theirs verbatim ("v1.64.8 is the minimum that parses Go 1.25 stdlib export data").
 
 **Decision (2026-04-27):** Lead-and-drift. This repo bumps now; the comment is updated to "Diverged from sibling pending modules-project bump (tracked: <issue link TBD>)". A tracking issue against `livepeer-modules-project` is filed as part of this plan's execution. Rationale: lint pin currently risks silent CI breakage on any local Go ≥ 1.26; sibling-coordinated bump is desirable but not blocking; this repo already leads on shipping cadence (just cut v0.8.10 against sibling v1.1.0).
 
 ## Current state vs target (verified 2026-04-27)
 
-| Component | This repo | Siblings | Latest stable | Plan target |
+> **Correction:** The "Siblings" column below reads from the stale per-module workflow files, not the canonical root `ci.yml`. Updated row inline below the original table.
+
+| Component | This repo | Siblings (claimed) | Latest stable | Plan target |
 |---|---|---|---|---|
 | Go (`go.mod`) | `1.25` | `1.25.0` | `1.26.2` | `1.25` (unchanged — non-goal) |
 | Go (Dockerfile) | `golang:1.25-alpine` | `golang:1.25-alpine` | `golang:1.26-alpine` | unchanged |
@@ -45,6 +50,18 @@ Sibling `livepeer-modules-project` (payment-daemon, service-registry-daemon, cha
 | `lint.yml` jobs | 3 | 6 | — | **add** govulncheck + custom-lints |
 | `test.yml` | absent | present (race + coverage) | — | **add** |
 | Coverage gate | convention only | enforced ≥75% | — | **enforce ≥75%** |
+
+**Corrected sibling state** (verified post-execution from `livepeer-modules-project/.github/workflows/ci.yml`):
+
+| Component | Siblings (actual) | Delta vs this repo |
+|---|---|---|
+| `golangci-lint` | `version: latest` (resolves to v2.x) | We pin specifically; they float — philosophical split |
+| `golangci-lint-action` | `@v8` | We're one major ahead at `@v9` |
+| `actions/setup-go` | `@v5` | Same — both behind `@v6` (their Dependabot will surface) |
+| `actions/checkout` | `@v4` | Same — both behind `@v6` (their Dependabot will surface) |
+| `.golangci.yml` schema | `version: "2"` (root + 4 module configs) | Same |
+| Dependabot | `gomod` (per-module) + `github-actions` (root) | Same scope, predates ours |
+| Workflow topology | Single consolidated `ci.yml` (path-filtered) + `docker.yml` | We split into `lint.yml` + `test.yml`; both reasonable |
 
 ## Approach
 
@@ -111,6 +128,25 @@ Sibling `livepeer-modules-project` (payment-daemon, service-registry-daemon, cha
 3. After merge: file the modules-project tracking issue referenced in the lint.yml comment.
 
 ## Decisions log
+
+### 2026-04-27 — Cross-repo audit retract: sibling pins were misread
+After landing the bundled commit, the modules-project team audited the tracking issue draft and pointed out that the cross-repo claims were wrong on 5 of 7 points. Verified ground truth from `livepeer-modules-project/.github/workflows/ci.yml`:
+
+- They pin `golangci-lint-action@v8` (not `@v6` as planned-against)
+- They use `version: latest` (resolves to v2.x — not `v1.64.8`)
+- All four `.golangci.yml` declare `version: "2"` (already on v2 schema)
+- Their Dependabot already manages `github-actions` ecosystem
+- They have a single consolidated `ci.yml` (their plan 0008), not per-module `lint.yml` + `test.yml`
+
+Where the bad data came from: the per-module `<module>/.github/workflows/lint.yml` files in their checkout still pin `v1.64.8` + `@v6`. Those are stale leftovers from before their CI consolidation. I read them at session start and treated them as canonical without checking the root `.github/workflows/`.
+
+Genuine deltas vs siblings (only):
+- `actions/setup-go@v5` (one major behind `@v6`)
+- `actions/checkout@v4` (two majors behind `@v6`)
+
+Both will surface on their next weekly Dependabot run. **Decision: don't file the tracking issue against modules-project; the premise was wrong.** The lint pin bump itself was still the right call for this repo regardless of sibling state.
+
+Lesson for future cross-repo work: read root-level workflow directories before per-module ones. Per-module workflow files in monorepos are frequently stale leftovers after CI consolidation.
 
 ### 2026-04-27 — Lead-and-drift on cross-repo path
 Reason: Sibling pin is identical to ours; coordinated bump would be ideal but is not blocking; CI lint is currently fragile against any local Go ≥ 1.26. Comment in `lint.yml` will be updated to acknowledge the temporary drift with a tracking-issue link.
