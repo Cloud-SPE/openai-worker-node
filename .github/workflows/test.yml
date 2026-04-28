@@ -34,9 +34,11 @@ jobs:
         # tracking entry — no implicit waivers.
         env:
           EXEMPT: |
+            github.com/Cloud-SPE/openai-worker-node/cmd/openai-worker-node
             github.com/Cloud-SPE/openai-worker-node/internal/providers/payeedaemon
             github.com/Cloud-SPE/openai-worker-node/internal/providers/backendhttp
             github.com/Cloud-SPE/openai-worker-node/internal/config
+            github.com/Cloud-SPE/openai-worker-node/internal/proto/gen/go/livepeer/payments/v1
             github.com/Cloud-SPE/openai-worker-node/lint/payment-middleware-check
         run: |
           awk -v threshold=75 -v exempt_raw="$EXEMPT" '

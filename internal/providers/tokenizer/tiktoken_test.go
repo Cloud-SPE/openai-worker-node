@@ -9,9 +9,9 @@ import (
 // fakeFallback records every call so we can assert when (and only when)
 // tiktoken delegates to the fallback path.
 type fakeFallback struct {
-	mu                  sync.Mutex
-	countCalls          int
-	countForModelCalls  int
+	mu                 sync.Mutex
+	countCalls         int
+	countForModelCalls int
 }
 
 func (f *fakeFallback) CountTokens(s string) int {

@@ -121,10 +121,10 @@ const (
 	UnitImageStepMegapixel = "image_step_megapixel"
 
 	// method — daemon RPC
-	MethodProcessPayment    = "ProcessPayment"
-	MethodDebitBalance      = "DebitBalance"
-	MethodGetQuote          = "GetQuote"
-	MethodListCapabilities  = "ListCapabilities"
+	MethodProcessPayment   = "ProcessPayment"
+	MethodDebitBalance     = "DebitBalance"
+	MethodGetQuote         = "GetQuote"
+	MethodListCapabilities = "ListCapabilities"
 
 	// error_class — backend HTTP
 	BackendErrorTimeout   = "timeout"
