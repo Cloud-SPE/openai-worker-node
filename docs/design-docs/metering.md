@@ -84,5 +84,5 @@ The "we already wrote bytes" case is why streaming modules (chat completions in 
 ## Cross-references
 
 - Module contract: [capability-modules.md](capability-modules.md).
-- Daemon-side debit semantics: [`../../../livepeer-modules-project/payment-daemon/docs/design-docs/redemption-loop.md`](../../../livepeer-modules-project/payment-daemon/docs/design-docs/redemption-loop.md).
+- Daemon-side debit semantics: [Cloud-SPE/livepeer-modules `payment-daemon` redemption-loop](https://github.com/Cloud-SPE/livepeer-modules/blob/main/payment-daemon/docs/design-docs/redemption-loop.md).
 - Bridge customer-facing reconciliation (USD side): [`../../../openai-livepeer-bridge/docs/design-docs/pricing-model.md`](../../../openai-livepeer-bridge/docs/design-docs/pricing-model.md).

@@ -21,7 +21,7 @@ Each paid route accepts the base64-encoded `livepeer.payments.v1.Payment` proto 
 
 ## gRPC surface (consumed, from the payment daemon)
 
-Defined in [`../../../livepeer-modules-project/payment-daemon/proto/livepeer/payments/v1/payee_daemon.proto`](../../../livepeer-modules-project/payment-daemon/proto/livepeer/payments/v1/payee_daemon.proto). This worker does not ship a copy of the proto; generated code lives in the library's `proto/gen/go/` and is consumed as a Go module dep.
+Defined in [`../../../internal/proto/livepeer/payments/v1/payee_daemon.proto`](../../../internal/proto/livepeer/payments/v1/payee_daemon.proto). This repo carries its own wire-compatible copy of the proto; generated Go stubs land at `internal/proto/gen/go/` and are regenerated with `make proto`. The upstream side (the daemon) is at [Cloud-SPE/livepeer-modules `payment-daemon`](https://github.com/Cloud-SPE/livepeer-modules/tree/main/payment-daemon/proto/livepeer/payments/v1).
 
 Methods used:
 

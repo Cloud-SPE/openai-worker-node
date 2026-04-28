@@ -24,9 +24,9 @@ Every paid HTTP route passes through the payment middleware — `ProcessPayment`
 
 Config parse error → refuse to start. Daemon/worker catalog mismatch → refuse to start. Missing backend URL for an advertised model → refuse to start. There is no "partial mode" where some capabilities work and others don't — the worker either serves its full advertised catalog or serves nothing.
 
-## 5. Shared YAML comes from the library, not from here
+## 5. The worker.yaml schema is a contract, not a shared library
 
-This repo consumes `livepeer-modules-project/payment-daemon/config/sharedyaml` as a Go module dependency. We do not define a YAML schema. Drift between what the daemon parses and what the worker parses is the exact failure mode this dependency exists to prevent.
+The worker and daemon share the contents of `worker.yaml` but parse it independently. The worker carries its own schema definition in `internal/config/` covering only the fields it reads (worker section + capabilities); the daemon owns its section and validates it on the daemon side. Drift between worker and daemon is caught at runtime via the daemon-catalog cross-check (`VerifyDaemonCatalog`) at startup, not at compile time. This trade — drift detection at startup, not build — is what lets each side ship and version independently.
 
 ## 6. The providers boundary is the only cross-cutting boundary
 

@@ -14,12 +14,9 @@ jobs:
           go-version: '1.25'
       - uses: golangci/golangci-lint-action@v9
         with:
-          # Sibling livepeer-modules-project (single consolidated
-          # .github/workflows/ci.yml) pins golangci-lint-action@v8 with
-          # `version: latest` (resolves to v2.x). We deliberately pin a
-          # specific version because re-triage on default-linter changes
-          # is a manual act — see plan 0009 for the philosophical split.
-          # Bump with a re-triage commit; don't chase `latest`.
+          # Pin a specific golangci-lint version. Re-triage on default-
+          # linter changes is a manual act — bump with a re-triage
+          # commit; don't chase `latest`.
           version: v2.11.4
 
   gofmt:

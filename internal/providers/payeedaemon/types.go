@@ -31,7 +31,7 @@ type DebitBalanceResult struct {
 
 // ListCapabilitiesResult mirrors paymentsv1.ListCapabilitiesResponse
 // in domain types. Used at startup to cross-check against the worker's
-// own sharedyaml.Config parse.
+// own worker.yaml parse.
 type ListCapabilitiesResult struct {
 	ProtocolVersion int32
 	Capabilities    []Capability
@@ -56,8 +56,8 @@ type ModelPrice struct {
 	// Model identifier (e.g. "llama-3.3-70b").
 	Model string
 	// PricePerWorkUnitWei, as a decimal string. Retained as a string
-	// so byte-equal comparison against the worker's sharedyaml.Config
-	// parse is exact — no rounding, no scientific-notation drift.
+	// so byte-equal comparison against the worker's worker.yaml parse
+	// is exact — no rounding, no scientific-notation drift.
 	PricePerWorkUnitWei string
 }
 

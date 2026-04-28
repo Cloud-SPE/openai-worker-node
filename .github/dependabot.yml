@@ -4,11 +4,11 @@
 #   - gomod  — module deps. Grouped so the high-blast-radius bumps
 #              (grpc + protobuf, prometheus client) land as a single
 #              reviewable PR rather than a stream of single-package PRs.
-#   - github-actions — workflow action pins. Sibling repos in
-#                      livepeer-modules-project don't manage this
-#                      ecosystem; this repo intentionally leads after
-#                      plan 0009 caught checkout/setup-go/golangci-lint
-#                      multiple majors stale.
+#   - github-actions — workflow action pins. This repo manages the
+#                      github-actions ecosystem on Dependabot — plan
+#                      0009 caught checkout/setup-go/golangci-lint
+#                      multiple majors stale and we don't want a
+#                      repeat.
 
 version: 2
 updates:

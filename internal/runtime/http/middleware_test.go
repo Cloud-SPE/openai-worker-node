@@ -13,8 +13,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/Cloud-SPE/livepeer-modules-project/payment-daemon/config/sharedyaml"
-
 	"github.com/Cloud-SPE/openai-worker-node/internal/config"
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/payeedaemon"
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
@@ -71,27 +69,23 @@ type testFixture struct {
 
 func buildFixture(t *testing.T) *testFixture {
 	t.Helper()
-	shared := &sharedyaml.Config{
-		ProtocolVersion: sharedyaml.CurrentProtocolVersion,
-		Worker: sharedyaml.WorkerConfig{
+	cfg := config.New(
+		config.CurrentProtocolVersion,
+		config.WorkerSection{
 			HTTPListen:            "127.0.0.1:0",
 			PaymentDaemonSocket:   "/tmp/fake.sock",
 			MaxConcurrentRequests: 8,
 		},
-		Capabilities: []sharedyaml.CapabilityConfig{
+		[]config.CapabilityEntry{
 			{
 				Capability: "openai:/v1/chat/completions",
 				WorkUnit:   "token",
-				Models: []sharedyaml.ModelConfig{
+				Models: []config.ModelEntry{
 					{Model: "test-model", PricePerWorkUnitWei: "100", BackendURL: "http://backend.local:9000"},
 				},
 			},
 		},
-	}
-	cfg, err := config.FromShared(shared)
-	if err != nil {
-		t.Fatalf("FromShared: %v", err)
-	}
+	)
 	payee := payeedaemon.NewFake()
 	mod := &fakeModule{
 		capability: "openai:/v1/chat/completions",
@@ -346,7 +340,7 @@ func TestHealthHandler(t *testing.T) {
 	if body["status"] != "ok" {
 		t.Errorf("status field: got %v, want ok", body["status"])
 	}
-	if fmt.Sprintf("%v", body["protocol_version"]) != fmt.Sprintf("%d", sharedyaml.CurrentProtocolVersion) {
+	if fmt.Sprintf("%v", body["protocol_version"]) != fmt.Sprintf("%d", config.CurrentProtocolVersion) {
 		t.Errorf("protocol_version: got %v", body["protocol_version"])
 	}
 }

@@ -1,6 +1,6 @@
 # AGENTS.md — openai-worker-node
 
-This repository hosts `openai-worker-node`: the HTTP adapter that sits between `openai-livepeer-bridge` and local inference backends (vLLM, diffusers, whisper, TTS, …). It validates payments via a sidecar [`livepeer-payment-daemon`](../livepeer-modules-project/payment-daemon) in `receiver` mode, then forwards OpenAI-compatible requests to the configured backend for each (capability, model) pair.
+This repository hosts `openai-worker-node`: the HTTP adapter that sits between `openai-livepeer-bridge` and local inference backends (vLLM, diffusers, whisper, TTS, …). It validates payments via a sidecar `livepeer-payment-daemon` in `receiver` mode (consumed as a published container image, not a source dependency), then forwards OpenAI-compatible requests to the configured backend for each (capability, model) pair.
 
 **Humans steer. Agents execute. Scaffolding is the artifact.**
 
@@ -10,7 +10,7 @@ This repository hosts `openai-worker-node`: the HTTP adapter that sits between `
 - How to plan work: [PLANS.md](PLANS.md)
 - Product mental model: [PRODUCT_SENSE.md](PRODUCT_SENSE.md)
 - Harness philosophy: [docs/references/openai-harness.pdf](docs/references/openai-harness.pdf)
-- Cross-repo YAML contract: [livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md](../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md)
+- worker.yaml schema (worker-side): [`internal/config/parse.go`](internal/config/parse.go) — the worker carries its own copy of the fields it reads
 
 ## Knowledge base layout
 
@@ -39,7 +39,7 @@ Lints enforce this in CI. See [docs/design-docs/architecture.md](docs/design-doc
 ## Toolchain
 
 - Go 1.25+
-- `buf` for consuming generated `livepeer.payments.v1.*` protos from the library
+- `buf` for regenerating the in-repo `livepeer.payments.v1` proto stubs (`make proto`); sources live in `internal/proto/livepeer/payments/v1/`
 - `golangci-lint` v2.11+ (v1.x is unsupported — export-data format mismatch with Go 1.25 stdlib) + custom lints in `lint/`
 - `govulncheck` (CI-only, informational)
 
@@ -54,7 +54,7 @@ Lints enforce this in CI. See [docs/design-docs/architecture.md](docs/design-doc
 
 1. **Payment is auth.** Every paid HTTP route MUST pass through the payment middleware before reaching a backend. The middleware calls `PayeeDaemon.ProcessPayment` + `DebitBalance`; skipping either is a security bug, not a style issue. Enforced by a custom lint on the capability-module registration surface.
 2. **Fail-closed on config.** `worker.yaml` parse errors, daemon/worker capability mismatch, or missing backend URLs cause refuse-to-start. No partial-start fallbacks.
-3. **Shared YAML is authoritative.** This repo does not define a YAML schema. It consumes [`livepeer-modules-project/payment-daemon/config/sharedyaml`](../livepeer-modules-project/payment-daemon/config/sharedyaml) as a Go module dep. Do not copy-paste the types.
+3. **worker.yaml schema is a runtime contract, not a build dep.** The worker defines its own view of `worker.yaml` in `internal/config/` covering only fields it reads. Daemon-section fields are accepted (so a single shared file works) but not validated here — the daemon validates its own section. Drift between worker and daemon is caught at startup via `VerifyDaemonCatalog`, not by the compiler. Trade-off: drift becomes a runtime failure, not a build failure; benefit: each side ships independently.
 4. **Providers boundary.** No cross-cutting dependency is imported outside `internal/providers/`.
 5. **No code without a plan.** Non-trivial work starts with an entry in `docs/exec-plans/active/`.
 6. **Test coverage ≥ 75% per package.** CI fails below this threshold. See `core-beliefs.md`.
@@ -68,5 +68,5 @@ Lints enforce this in CI. See [docs/design-docs/architecture.md](docs/design-doc
 | What's in flight? | `docs/exec-plans/active/` |
 | What HTTP routes does it serve? | `docs/product-specs/index.md` |
 | How do capability modules work? | `docs/design-docs/capability-modules.md` (planned) |
-| What's the YAML contract? | `../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md` |
+| What's the YAML contract? | [`internal/config/parse.go`](internal/config/parse.go) — worker-side schema and validation |
 | Known debt? | `docs/exec-plans/tech-debt-tracker.md` |

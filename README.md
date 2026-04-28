@@ -1,6 +1,6 @@
 # openai-worker-node
 
-The payee-side HTTP adapter for Livepeer BYOC payment. Sits in front of local OpenAI-compatible inference backends (vLLM, diffusers, whisper, TTS, …), validates payment via a co-located [`livepeer-payment-daemon`](../livepeer-modules-project/payment-daemon), and serves paid requests from [`openai-livepeer-bridge`](../openai-livepeer-bridge).
+The payee-side HTTP adapter for Livepeer BYOC payment. Sits in front of local OpenAI-compatible inference backends (vLLM, diffusers, whisper, TTS, …), validates payment via a co-located `livepeer-payment-daemon` running over a unix socket, and serves paid requests from `openai-livepeer-bridge`.
 
 ## Status
 
@@ -36,10 +36,10 @@ Video generation, FFMPEG live transcoding, and custom workloads are backlog.
 - [docs/design-docs/](docs/design-docs/) — catalogued design decisions
 - [docs/exec-plans/active/](docs/exec-plans/active/) — in-flight work
 
-## Cross-repo contracts
+## Contracts shared with the payment daemon
 
-- **YAML schema:** [`livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md`](../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md)
-- **gRPC API:** [`livepeer-modules-project/payment-daemon/proto/livepeer/payments/v1/payee_daemon.proto`](../livepeer-modules-project/payment-daemon/proto/livepeer/payments/v1/payee_daemon.proto)
+- **YAML schema:** the worker parses its own copy of the schema in [`internal/config/`](internal/config/). The daemon parses the same `worker.yaml` independently. Drift is detected at runtime via the daemon-catalog cross-check.
+- **gRPC API:** the `.proto` definitions in [`internal/proto/livepeer/payments/v1/`](internal/proto/livepeer/payments/v1/) are wire-compatible with the daemon's. Regenerate Go stubs with `make proto`.
 
 ## License
 

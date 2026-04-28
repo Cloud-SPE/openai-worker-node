@@ -1,4 +1,4 @@
-.PHONY: build test lint lint-custom doc-lint docker-build docker-build-version clean
+.PHONY: build test lint lint-custom doc-lint proto docker-build docker-build-version docker-push clean
 
 build:
 	go build -o bin/openai-worker-node ./cmd/openai-worker-node
@@ -18,26 +18,22 @@ lint-custom:
 doc-lint:
 	@echo "doc-lint: placeholder until doc-gardener is wired in"
 
+# Regenerate the local proto stubs from the .proto sources under
+# internal/proto/. Run after editing any .proto file. Buf v2 + the
+# remote protocolbuffers/go and grpc/go plugins handle codegen — no
+# local protoc/protoc-gen-go install needed.
+proto:
+	cd internal/proto && buf generate
+
 # Build the container image as tztcloud/livepeer-openai-worker-node:dev.
 # Override tag via DOCKER_TAG=... to publish-name it (e.g.
 # `make docker-build DOCKER_TAG=v1.1.2`).
-#
-# `--build-context payment-daemon=...` feeds the sibling
-# livepeer-modules-project/payment-daemon module into the Dockerfile's
-# named build context. Required while go.mod carries the local
-# `replace` directive; goes away once the module tags a release.
 DOCKER_TAG ?= dev
 DOCKER_IMAGE ?= tztcloud/livepeer-openai-worker-node
-# Note: do NOT name this *_PATH (e.g. PAYMENT_DAEMON_PATH) — the *_PATH
-# suffix collides with common env vars (CUDA toolchains export
-# LIBRARY_PATH) and an override would silently retarget the build
-# context.
-PAYMENT_DAEMON_CONTEXT ?= ../livepeer-modules-project/payment-daemon
 
 docker-build:
 	docker build \
 		--build-arg VERSION=$(DOCKER_TAG) \
-		--build-context payment-daemon=$(PAYMENT_DAEMON_CONTEXT) \
 		-t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 
 docker-push:

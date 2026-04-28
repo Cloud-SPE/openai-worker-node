@@ -7,10 +7,8 @@ alongside `livepeer-payment-daemon` (receiver mode), sharing one
 ## Prerequisites
 
 - Docker 24+ with Compose v2.
-- A sibling checkout of `livepeer-modules-project/payment-daemon` (required until the
-  library tags a release; the replace directive in `go.mod` and the
-  `additional_contexts: library: ../livepeer-modules-project/payment-daemon` in
-  `compose.yaml` assume it's at `../livepeer-modules-project/payment-daemon`).
+
+The dev `compose.yaml` pulls the `payment-daemon` sidecar as a published image (`tztcloud/livepeer-payment-daemon`); the worker image builds from this repo alone. No sibling checkout required.
 
 ## First run (dev mode, fake broker)
 
@@ -150,9 +148,10 @@ sensitive.
 
 ## Upgrading
 
-When the library tags a release:
+To pick up a new payment-daemon release, bump `DAEMON_TAG` (or the pinned `image: tztcloud/livepeer-payment-daemon:vX.Y.Z` in `compose.prod.yaml`) and run:
 
-1. Bump `require github.com/Cloud-SPE/livepeer-modules-project/payment-daemon v…`
-   in `go.mod`; remove the `replace` directive.
-2. Remove `additional_contexts: library: …` from `compose.yaml`.
-3. `docker compose build --no-cache && docker compose up -d`.
+```
+docker compose pull && docker compose up -d
+```
+
+Schema or proto changes from the daemon side land here as PRs that update `internal/config/` (worker.yaml schema) and/or `internal/proto/livepeer/payments/v1/` (regenerate with `make proto`). Drift between this repo's pinned proto/schema and a running daemon is caught at startup by `VerifyDaemonCatalog` — the worker refuses to start on mismatch rather than serving wrong-priced requests.

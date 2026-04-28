@@ -2,8 +2,9 @@ package types
 
 // CapabilityID is the canonical capability string in the form
 // `<domain>:<identifier>`, e.g. `openai:/v1/chat/completions`. Matches
-// the library's regex `^[a-z][a-z0-9]*:.+$` — validation lives in
-// sharedyaml; this type is a named alias for clarity at call sites.
+// the regex `^[a-z][a-z0-9]*:.+$` — validation lives in
+// internal/config; this type is a named alias for clarity at call
+// sites.
 type CapabilityID string
 
 // ModelID is the model identifier a module routes on, e.g.
@@ -11,9 +12,9 @@ type CapabilityID string
 // what it accepts.
 type ModelID string
 
-// WorkUnit identifies the metering unit for a capability. The library
-// treats it as opaque int64 at DebitBalance; this typed constant set
-// is for clarity in worker code and logs only.
+// WorkUnit identifies the metering unit for a capability. The
+// payment-daemon treats work_units as opaque int64 at DebitBalance;
+// this typed constant set is for clarity in worker code and logs only.
 type WorkUnit string
 
 const (

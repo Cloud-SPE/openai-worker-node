@@ -2,11 +2,13 @@
 # containers read the SAME worker.yaml via a read-only bind mount at
 # /etc/livepeer/worker.yaml.
 #
+# The daemon is pulled as a published image; this repo has no source
+# dependency on the daemon. Bump DAEMON_TAG when the daemon side cuts
+# a new release.
+#
 # Production deployments will:
-#   - Drop the `additional_contexts` block (the module will be a
-#     tagged Go module, not a sibling checkout).
 #   - Replace the fake broker mode with real `--chain-rpc` +
-#     `--keystore-path`.
+#     `--keystore-path` (see compose.prod.yaml).
 #   - Point backend_url entries at actual inference servers.
 #
 # Bring it up with:
@@ -18,10 +20,7 @@
 
 services:
   payment-daemon:
-    # Built from the sibling repo. Assumes you've checked out
-    # livepeer-modules-project as a sibling of openai-worker-node.
-    build:
-      context: ../livepeer-modules-project/payment-daemon
+    image: tztcloud/livepeer-payment-daemon:${DAEMON_TAG:-v1.4.0}
     command:
       - "--mode=receiver"
       - "--socket=/var/run/livepeer/payment-daemon.sock"
@@ -36,13 +35,7 @@ services:
 
   openai-worker:
     build:
-      # Default context = this repo.
       context: .
-      # Expose the sibling payment-daemon module to the build. Required
-      # while the go.mod has a `replace` directive; drops out once the
-      # module is tagged.
-      additional_contexts:
-        payment-daemon: ../livepeer-modules-project/payment-daemon
     command:
       - "--config=/etc/livepeer/worker.yaml"
       - "--log-level=info"

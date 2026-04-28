@@ -91,13 +91,13 @@ HTTP response complete
 
 Reconciliation direction is over-debit only (user decision). If actual < est the ledger stays ahead; we do not credit back.
 
-## Cross-repo contracts
+## Cross-process contracts
 
-### Shared YAML
-Single file, bind-mounted into both the daemon and this worker. Schema and parsing live in `livepeer-modules-project/payment-daemon/config/sharedyaml` and are imported here as a Go module. See [`../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md`](../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md).
+### worker.yaml (shared file, parsed independently)
+Single file, bind-mounted into both the daemon and this worker. The worker carries its own copy of parsing/validation in [`internal/config/`](internal/config/), covering only the fields it reads (worker section + capabilities). The daemon owns its section and validates it independently. Drift between worker and daemon is caught at startup via `VerifyDaemonCatalog`, not at compile time. Daemon-side schema reference: [Cloud-SPE/livepeer-modules `payment-daemon` shared-yaml](https://github.com/Cloud-SPE/livepeer-modules/blob/main/payment-daemon/docs/design-docs/shared-yaml.md).
 
 ### Payee daemon gRPC
-Generated from `livepeer-modules-project/payment-daemon/proto/livepeer/payments/v1/`. This repo consumes the `PayeeDaemonClient` — it does not define or implement the service.
+Sources live in [`internal/proto/livepeer/payments/v1/`](internal/proto/livepeer/payments/v1/); generated Go in `internal/proto/gen/go/...`. The `.proto` files are wire-compatible copies of the daemon's; regenerate with `make proto`. This repo consumes the `PayeeDaemonClient` — it does not implement the service.
 
 Startup sequence:
 1. Parse `--config` → in-memory `Config`.

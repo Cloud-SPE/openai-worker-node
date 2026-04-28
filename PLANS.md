@@ -2,7 +2,7 @@
 
 Plans are first-class artifacts. They are versioned in-repo alongside code so agents can read progress and decision history from the repository itself.
 
-This repo follows the same planning convention as its siblings (`livepeer-modules-project/payment-daemon`, `openai-livepeer-bridge`). The sections below are intentionally mirror-copies; differences are called out explicitly.
+This repo follows the same planning convention as its sibling repos (the daemons in [`Cloud-SPE/livepeer-modules`](https://github.com/Cloud-SPE/livepeer-modules), and `openai-livepeer-bridge`). The sections below are intentionally mirror-copies; differences are called out explicitly.
 
 ## Two kinds of plans
 
@@ -25,7 +25,7 @@ docs/exec-plans/completed/
 docs/exec-plans/tech-debt-tracker.md
 ```
 
-IDs are monotonic, zero-padded to 4 digits, unique within this repo. Cross-repo coordination (e.g. this repo's `0001` depending on `livepeer-modules-project/payment-daemon`'s `0018`) is captured in the `## Cross-repo dependencies` section of a plan.
+IDs are monotonic, zero-padded to 4 digits, unique within this repo. Cross-repo coordination (e.g. this repo's `0001` depending on `payment-daemon`'s `0018`) is captured in the `## Cross-repo dependencies` section of a plan.
 
 ## Exec-plan template
 

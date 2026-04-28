@@ -97,4 +97,4 @@ A module that fails at step 10 may have already written response bytes — the m
 
 - Per-capability metering: [metering.md](metering.md).
 - Streaming framing: [streaming.md](streaming.md).
-- Cross-repo capability-string namespace: [`../../../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md`](../../../livepeer-modules-project/payment-daemon/docs/design-docs/shared-yaml.md).
+- Capability-string namespace contract (worker side): [`../../../internal/config/parse.go`](../../../internal/config/parse.go) — `capabilityRE` + `knownWorkUnits`. Worker and daemon must agree on these regexes/sets; drift is caught at runtime by `VerifyDaemonCatalog`. Daemon-side schema reference: [Cloud-SPE/livepeer-modules `payment-daemon` shared-yaml](https://github.com/Cloud-SPE/livepeer-modules/blob/main/payment-daemon/docs/design-docs/shared-yaml.md).

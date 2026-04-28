@@ -1,6 +1,6 @@
 # Grafana dashboard
 
-Pre-built dashboard covering everything `openai-worker-node` emits to Prometheus. Mirrors the metric catalog in [`docs/design-docs/metrics.md`](../../design-docs/metrics.md) and follows the same pattern as the [livepeer-modules-project/service-registry-daemon dashboard](../../../../livepeer-modules-project/service-registry-daemon/docs/operations/grafana/).
+Pre-built dashboard covering everything `openai-worker-node` emits to Prometheus. Mirrors the metric catalog in [`docs/design-docs/metrics.md`](../../design-docs/metrics.md) and follows the same pattern as the [Cloud-SPE/livepeer-modules `service-registry-daemon` dashboard](https://github.com/Cloud-SPE/livepeer-modules/tree/main/service-registry-daemon/docs/operations/grafana).
 
 ## Files
 
