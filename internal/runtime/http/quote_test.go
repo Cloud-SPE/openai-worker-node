@@ -62,7 +62,7 @@ func TestQuoteHandler_HappyPath(t *testing.T) {
 	if out.TicketParams.ExpirationParams.CreationRound != 42 {
 		t.Errorf("creation_round: got %d", out.TicketParams.ExpirationParams.CreationRound)
 	}
-	if len(out.ModelPrices) != 2 || out.ModelPrices[0].Model != "llama-3.3-70b" {
+	if len(out.ModelPrices) != 2 || out.ModelPrices[0].ID != "llama-3.3-70b" {
 		t.Errorf("model_prices: unexpected %+v", out.ModelPrices)
 	}
 }
@@ -150,8 +150,8 @@ func TestQuotesHandler_HappyPath(t *testing.T) {
 	if !strings.Contains(body, `"capability":"openai:/v1/chat/completions"`) {
 		t.Errorf("quotes body missing capability: %s", body)
 	}
-	if !strings.Contains(body, `"model":"llama-3.3-70b"`) {
-		t.Errorf("quotes body missing model: %s", body)
+	if !strings.Contains(body, `"id":"llama-3.3-70b"`) {
+		t.Errorf("quotes body missing offering id: %s", body)
 	}
 }
 

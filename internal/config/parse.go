@@ -43,7 +43,7 @@ type yamlWorker struct {
 type yamlCapability struct {
 	Capability string      `yaml:"capability"`
 	WorkUnit   string      `yaml:"work_unit"`
-	Models     []yamlModel `yaml:"models"`
+	Offerings  []yamlOffering `yaml:"offerings"`
 
 	// Streaming-only knobs. Optional; not used by the current worker
 	// modules (none stream yet) but accepted so a shared worker.yaml
@@ -53,8 +53,8 @@ type yamlCapability struct {
 	SufficientGraceSeconds     int `yaml:"sufficient_grace_seconds,omitempty"`
 }
 
-type yamlModel struct {
-	Model               string `yaml:"model"`
+type yamlOffering struct {
+	Model               string `yaml:"id"`
 	PricePerWorkUnitWei string `yaml:"price_per_work_unit_wei"`
 	BackendURL          string `yaml:"backend_url"`
 }
@@ -154,12 +154,12 @@ func validateCapability(i int, c *yamlCapability) error {
 	if _, ok := knownWorkUnits[c.WorkUnit]; !ok {
 		return fmt.Errorf("%s.work_unit: must be one of %s (got %q)", prefix, strings.Join(sortedKeys(knownWorkUnits), "|"), c.WorkUnit)
 	}
-	if len(c.Models) == 0 {
+	if len(c.Offerings) == 0 {
 		return fmt.Errorf("%s.models: at least one model required", prefix)
 	}
-	seen := make(map[string]struct{}, len(c.Models))
-	for j, m := range c.Models {
-		if err := validateModel(prefix, j, &m); err != nil {
+	seen := make(map[string]struct{}, len(c.Offerings))
+	for j, m := range c.Offerings {
+		if err := validateOffering(prefix, j, &m); err != nil {
 			return err
 		}
 		if _, dup := seen[m.Model]; dup {
@@ -170,7 +170,7 @@ func validateCapability(i int, c *yamlCapability) error {
 	return nil
 }
 
-func validateModel(capPrefix string, j int, m *yamlModel) error {
+func validateOffering(capPrefix string, j int, m *yamlOffering) error {
 	prefix := fmt.Sprintf("%s.models[%d]", capPrefix, j)
 	if m.Model == "" {
 		return fmt.Errorf("%s.model: required", prefix)
@@ -200,10 +200,10 @@ func projectFromYAML(y *yamlConfig) *Config {
 		entry := CapabilityEntry{
 			Capability: types.CapabilityID(c.Capability),
 			WorkUnit:   types.WorkUnit(c.WorkUnit),
-			Models:     make([]ModelEntry, 0, len(c.Models)),
+			Offerings:  make([]OfferingEntry, 0, len(c.Offerings)),
 		}
-		for _, m := range c.Models {
-			entry.Models = append(entry.Models, ModelEntry{
+		for _, m := range c.Offerings {
+			entry.Offerings = append(entry.Offerings, OfferingEntry{
 				Model:               types.ModelID(m.Model),
 				PricePerWorkUnitWei: m.PricePerWorkUnitWei,
 				BackendURL:          m.BackendURL,

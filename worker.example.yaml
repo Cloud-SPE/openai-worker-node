@@ -77,7 +77,7 @@ worker:
 capabilities:
   - capability: "openai:/v1/chat/completions"
     work_unit: token
-    models:
+    offerings:
       # GROWTH-PHASE DEFAULTS — bridge keeps ~90 % of revenue while
       # building a customer base; workers participate at a loss on the
       # bet that volume grows. These rates DO NOT cover a consumer GPU's
@@ -109,7 +109,7 @@ capabilities:
       # against the matching customer tier is positive.
       # Conversions assume $4000/ETH; multiply by current ETH price
       # ratio to track market.
-      - model: "gemma4:26b"
+      - id: "gemma4:26b"
         price_per_work_unit_wei: "1250000"
         # Ollama's OpenAI-compatible endpoint. If Ollama runs on the
         # same docker host as this stack, use the host gateway IP
@@ -123,7 +123,7 @@ capabilities:
       # specialty model name and adjust price as your hardware/demand
       # dictates.
       #
-      # - model: "uncensored-llama-3-70b"
+      # - id: "uncensored-llama-3-70b"
       #   price_per_work_unit_wei: "75000000"   # ≈ $0.30/M tokens (premium tier)
       #   backend_url: "http://REPLACE_WITH_OLLAMA_HOST:11434"
 

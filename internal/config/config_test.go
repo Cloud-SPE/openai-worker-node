@@ -20,7 +20,7 @@ func goodConfig() *Config {
 			{
 				Capability: "openai:/v1/chat/completions",
 				WorkUnit:   "token",
-				Models: []ModelEntry{
+				Offerings: []OfferingEntry{
 					{Model: "llama-3.3-70b", PricePerWorkUnitWei: "2000000000", BackendURL: "http://localhost:8000"},
 					{Model: "mistral-7b-instruct", PricePerWorkUnitWei: "500000000", BackendURL: "http://localhost:8001"},
 				},
@@ -28,7 +28,7 @@ func goodConfig() *Config {
 			{
 				Capability: "openai:/v1/embeddings",
 				WorkUnit:   "token",
-				Models: []ModelEntry{
+				Offerings: []OfferingEntry{
 					{Model: "text-embedding-3-small", PricePerWorkUnitWei: "100000000", BackendURL: "http://localhost:8002"},
 				},
 			},

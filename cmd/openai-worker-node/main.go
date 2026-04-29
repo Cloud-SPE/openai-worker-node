@@ -295,7 +295,7 @@ func registerModules(
 			logger.Info("capability registered",
 				"capability", mod.Capability(),
 				"path", mod.HTTPPath(),
-				"models", len(entry.Models))
+				"models", len(entry.Offerings))
 			registered++
 		case embeddings.Capability:
 			mod := embeddings.New(tok, backend).WithRecorder(recorder)
@@ -303,7 +303,7 @@ func registerModules(
 			logger.Info("capability registered",
 				"capability", mod.Capability(),
 				"path", mod.HTTPPath(),
-				"models", len(entry.Models))
+				"models", len(entry.Offerings))
 			registered++
 		case images_generations.Capability:
 			mod := images_generations.New(backend).WithRecorder(recorder)
@@ -311,7 +311,7 @@ func registerModules(
 			logger.Info("capability registered",
 				"capability", mod.Capability(),
 				"path", mod.HTTPPath(),
-				"models", len(entry.Models))
+				"models", len(entry.Offerings))
 			registered++
 		case audio_speech.Capability:
 			mod := audio_speech.New(backend).WithRecorder(recorder)
@@ -319,7 +319,7 @@ func registerModules(
 			logger.Info("capability registered",
 				"capability", mod.Capability(),
 				"path", mod.HTTPPath(),
-				"models", len(entry.Models))
+				"models", len(entry.Offerings))
 			registered++
 		case images_edits.Capability:
 			mod := images_edits.New(backend).WithRecorder(recorder)
@@ -327,7 +327,7 @@ func registerModules(
 			logger.Info("capability registered",
 				"capability", mod.Capability(),
 				"path", mod.HTTPPath(),
-				"models", len(entry.Models))
+				"models", len(entry.Offerings))
 			registered++
 		case audio_transcriptions.Capability:
 			mod := audio_transcriptions.New(backend).WithRecorder(recorder)
@@ -335,7 +335,7 @@ func registerModules(
 			logger.Info("capability registered",
 				"capability", mod.Capability(),
 				"path", mod.HTTPPath(),
-				"models", len(entry.Models))
+				"models", len(entry.Offerings))
 			registered++
 		default:
 			logger.Warn("config declares capability this build doesn't implement",

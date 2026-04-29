@@ -31,7 +31,7 @@ func buildFixtureWithCap(t *testing.T, capN int) *testFixture {
 			{
 				Capability: "openai:/v1/chat/completions",
 				WorkUnit:   "token",
-				Models: []config.ModelEntry{
+				Offerings: []config.OfferingEntry{
 					{Model: "test-model", PricePerWorkUnitWei: "100", BackendURL: "http://backend.local:9000"},
 				},
 			},

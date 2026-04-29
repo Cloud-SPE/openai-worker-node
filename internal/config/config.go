@@ -55,11 +55,11 @@ type CapabilityCatalog struct {
 type CapabilityEntry struct {
 	Capability types.CapabilityID
 	WorkUnit   types.WorkUnit
-	Models     []ModelEntry
+	Offerings  []OfferingEntry
 }
 
-// ModelEntry is one row of a capability's model list.
-type ModelEntry struct {
+// OfferingEntry is one row of a capability's model list.
+type OfferingEntry struct {
 	Model               types.ModelID
 	PricePerWorkUnitWei string
 	BackendURL          string
@@ -94,7 +94,7 @@ func New(protocolVersion int32, w WorkerSection, ordered []CapabilityEntry) *Con
 		},
 	}
 	for _, entry := range ordered {
-		for _, m := range entry.Models {
+		for _, m := range entry.Offerings {
 			cfg.Capabilities.Route[RouteKey{Capability: entry.Capability, Model: m.Model}] = ModelRoute{
 				Capability:          entry.Capability,
 				Model:               m.Model,

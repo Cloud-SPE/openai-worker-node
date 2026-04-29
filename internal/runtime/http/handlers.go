@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -52,6 +53,7 @@ func parseQuoteParams(r *http.Request) (sender []byte, capability string, err er
 func RegisterUnpaidHandlers(m *Mux, cfg *config.Config) {
 	m.Register(http.MethodGet, "/health", healthHandler(cfg, m))
 	m.Register(http.MethodGet, "/capabilities", capabilitiesHandler(cfg))
+	m.Register(http.MethodGet, "/registry/offerings", registryOfferingsHandler(cfg))
 	m.Register(http.MethodGet, "/quote", quoteHandler(cfg, m.payee))
 	m.Register(http.MethodGet, "/quotes", quotesHandler(cfg, m.payee))
 }
@@ -87,17 +89,17 @@ func capabilitiesHandler(cfg *config.Config) http.HandlerFunc {
 			Capabilities:    make([]capabilityJSON, 0, len(cfg.Capabilities.Ordered)),
 		}
 		for _, c := range cfg.Capabilities.Ordered {
-			models := make([]modelJSON, 0, len(c.Models))
-			for _, m := range c.Models {
-				models = append(models, modelJSON{
-					Model:               string(m.Model),
-					PricePerWorkUnitWei: m.PricePerWorkUnitWei,
+			offerings := make([]offeringJSON, 0, len(c.Offerings))
+			for _, o := range c.Offerings {
+				offerings = append(offerings, offeringJSON{
+					ID:                  string(o.Model),
+					PricePerWorkUnitWei: o.PricePerWorkUnitWei,
 				})
 			}
 			out.Capabilities = append(out.Capabilities, capabilityJSON{
 				Capability: string(c.Capability),
 				WorkUnit:   string(c.WorkUnit),
-				Models:     models,
+				Offerings:  offerings,
 			})
 		}
 		_ = json.NewEncoder(w).Encode(out)
@@ -105,14 +107,73 @@ func capabilitiesHandler(cfg *config.Config) http.HandlerFunc {
 }
 
 type capabilityJSON struct {
-	Capability string      `json:"capability"`
-	WorkUnit   string      `json:"work_unit"`
-	Models     []modelJSON `json:"models"`
+	Capability string         `json:"capability"`
+	WorkUnit   string         `json:"work_unit"`
+	Offerings  []offeringJSON `json:"offerings"`
 }
 
-type modelJSON struct {
-	Model               string `json:"model"`
+type offeringJSON struct {
+	ID                  string `json:"id"`
 	PricePerWorkUnitWei string `json:"price_per_work_unit_wei"`
+}
+
+// registryOfferingsHandler emits the modules-canonical capability fragment
+// the orch-coordinator scrapes to pre-fill the operator's roster (per
+// service-registry-daemon/docs/design-docs/worker-offerings-endpoint.md).
+//
+// Body shape: `{"capabilities": [{"name", "work_unit", "offerings": [...]}]}`
+// — same outer envelope the modules manifest uses at
+// `nodes[].capabilities[]`. Worker doesn't include node identity
+// (id/url/region/lat/lon); operator types those into the coordinator's
+// roster row alongside the worker URL.
+//
+// Auth: optional bearer via `OFFERINGS_AUTH_TOKEN` env. If unset, plain
+// HTTP. The data isn't secret — it ends up in the public signed manifest
+// — so default-no-auth is fine.
+func registryOfferingsHandler(cfg *config.Config) http.HandlerFunc {
+	authToken := strings.TrimSpace(os.Getenv("OFFERINGS_AUTH_TOKEN"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		if authToken != "" {
+			gotAuth := r.Header.Get("Authorization")
+			want := "Bearer " + authToken
+			if gotAuth != want {
+				writeJSONError(w, http.StatusUnauthorized, "unauthorized", "missing or invalid bearer token")
+				return
+			}
+		}
+		out := struct {
+			Capabilities []registryCapabilityJSON `json:"capabilities"`
+		}{
+			Capabilities: make([]registryCapabilityJSON, 0, len(cfg.Capabilities.Ordered)),
+		}
+		for _, c := range cfg.Capabilities.Ordered {
+			offerings := make([]offeringJSON, 0, len(c.Offerings))
+			for _, o := range c.Offerings {
+				offerings = append(offerings, offeringJSON{
+					ID:                  string(o.Model),
+					PricePerWorkUnitWei: o.PricePerWorkUnitWei,
+				})
+			}
+			out.Capabilities = append(out.Capabilities, registryCapabilityJSON{
+				Name:      string(c.Capability),
+				WorkUnit:  string(c.WorkUnit),
+				Offerings: offerings,
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(out)
+	}
+}
+
+// registryCapabilityJSON is the modules-canonical capability fragment
+// shape (`name` not `capability`, matching nodes[].capabilities[].name in
+// the manifest). Distinct from `capabilityJSON` which uses the
+// worker-internal `capability` key for the diagnostic /capabilities
+// endpoint.
+type registryCapabilityJSON struct {
+	Name      string         `json:"name"`
+	WorkUnit  string         `json:"work_unit"`
+	Offerings []offeringJSON `json:"offerings"`
 }
 
 // quoteHandler proxies GET /quote?sender=0x…&capability=<str> through
@@ -175,7 +236,7 @@ func quotesHandler(cfg *config.Config, payee payeedaemon.Client) http.HandlerFun
 // /quotes. Matches what the bridge's NodeQuoteResponseSchema expects.
 type quoteJSON struct {
 	TicketParams ticketParamsJSON `json:"ticket_params"`
-	ModelPrices  []modelJSON      `json:"model_prices"`
+	ModelPrices  []offeringJSON      `json:"model_prices"`
 }
 
 type ticketParamsJSON struct {
@@ -214,11 +275,11 @@ func fetchQuoteJSON(ctx context.Context, payee payeedaemon.Client, sender []byte
 				CreationRoundBlockHash: "0x" + hex.EncodeToString(res.TicketParams.ExpirationParams.CreationRoundBlockHash),
 			},
 		},
-		ModelPrices: make([]modelJSON, 0, len(res.ModelPrices)),
+		ModelPrices: make([]offeringJSON, 0, len(res.ModelPrices)),
 	}
 	for _, m := range res.ModelPrices {
-		out.ModelPrices = append(out.ModelPrices, modelJSON{
-			Model:               m.Model,
+		out.ModelPrices = append(out.ModelPrices, offeringJSON{
+			ID:                               m.Model,
 			PricePerWorkUnitWei: m.PricePerWorkUnitWei,
 		})
 	}

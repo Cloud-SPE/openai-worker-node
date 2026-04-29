@@ -80,7 +80,7 @@ func buildFixture(t *testing.T) *testFixture {
 			{
 				Capability: "openai:/v1/chat/completions",
 				WorkUnit:   "token",
-				Models: []config.ModelEntry{
+				Offerings: []config.OfferingEntry{
 					{Model: "test-model", PricePerWorkUnitWei: "100", BackendURL: "http://backend.local:9000"},
 				},
 			},
@@ -358,8 +358,11 @@ func TestCapabilitiesHandler(t *testing.T) {
 	if !strings.Contains(string(raw), `"capability":"openai:/v1/chat/completions"`) {
 		t.Errorf("capabilities output missing capability: %s", raw)
 	}
-	if !strings.Contains(string(raw), `"model":"test-model"`) {
-		t.Errorf("capabilities output missing model: %s", raw)
+	if !strings.Contains(string(raw), `"id":"test-model"`) {
+		t.Errorf("capabilities output missing offering id: %s", raw)
+	}
+	if !strings.Contains(string(raw), `"offerings":[`) {
+		t.Errorf("capabilities output missing offerings list: %s", raw)
 	}
 	if strings.Contains(string(raw), "backend_url") {
 		t.Errorf("capabilities output MUST NOT include backend_url: %s", raw)
