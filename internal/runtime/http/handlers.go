@@ -236,7 +236,7 @@ func quotesHandler(cfg *config.Config, payee payeedaemon.Client) http.HandlerFun
 // /quotes. Matches what the bridge's NodeQuoteResponseSchema expects.
 type quoteJSON struct {
 	TicketParams ticketParamsJSON `json:"ticket_params"`
-	ModelPrices  []offeringJSON      `json:"model_prices"`
+	ModelPrices  []offeringJSON   `json:"model_prices"`
 }
 
 type ticketParamsJSON struct {
@@ -279,7 +279,7 @@ func fetchQuoteJSON(ctx context.Context, payee payeedaemon.Client, sender []byte
 	}
 	for _, m := range res.ModelPrices {
 		out.ModelPrices = append(out.ModelPrices, offeringJSON{
-			ID:                               m.Model,
+			ID:                  m.Model,
 			PricePerWorkUnitWei: m.PricePerWorkUnitWei,
 		})
 	}

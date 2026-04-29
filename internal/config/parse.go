@@ -41,8 +41,8 @@ type yamlWorker struct {
 }
 
 type yamlCapability struct {
-	Capability string      `yaml:"capability"`
-	WorkUnit   string      `yaml:"work_unit"`
+	Capability string         `yaml:"capability"`
+	WorkUnit   string         `yaml:"work_unit"`
 	Offerings  []yamlOffering `yaml:"offerings"`
 
 	// Streaming-only knobs. Optional; not used by the current worker
