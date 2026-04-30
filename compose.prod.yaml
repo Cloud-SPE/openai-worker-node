@@ -20,7 +20,7 @@ name: livepeer-worker
 
 services:
   payment-daemon:
-    image: tztcloud/livepeer-payment-daemon:${PAYMENT_IMAGE_TAG:-v3.0.0}
+    image: tztcloud/livepeer-payment-daemon:${PAYMENT_IMAGE_TAG:-v3.0.1}
     restart: unless-stopped
     command:
       - --mode=receiver
@@ -55,7 +55,7 @@ services:
       - no-new-privileges:true
 
   openai-worker:
-    image: tztcloud/livepeer-openai-worker-node:${WORKER_IMAGE_TAG:-v3.0.0}
+    image: tztcloud/livepeer-openai-worker-node:${WORKER_IMAGE_TAG:-v3.0.1}
     restart: unless-stopped
     depends_on:
       - payment-daemon

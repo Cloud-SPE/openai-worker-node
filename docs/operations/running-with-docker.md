@@ -146,9 +146,8 @@ sensitive.
 ## Upgrading
 
 To pick up a new daemon or worker release, bump `PAYMENT_IMAGE_TAG` and
-`WORKER_IMAGE_TAG` in `.env` (or rely on the default `v3.0.0`/`v3.0.1`
-style pins in
-compose) and run:
+`WORKER_IMAGE_TAG` in `.env` (or rely on the default `v3.0.1` style pins
+in compose) and run:
 
 ```
 docker compose pull && docker compose up -d
