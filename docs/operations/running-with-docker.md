@@ -166,3 +166,17 @@ update `internal/config/` (worker.yaml schema) and/or
 Drift between this repo's pinned proto/schema and a running daemon is
 caught at startup by `VerifyDaemonCatalog` — the worker refuses to
 start on mismatch rather than serving wrong-priced requests.
+
+## CI image publishing
+
+GitHub Actions publishes `tztcloud/livepeer-openai-worker-node` on tag
+pushes matching `v*` via `.github/workflows/docker.yml`.
+
+- Every `v*` tag pushes `:<version>`.
+- Stable tags matching `v<major>.<minor>.<patch>` also push
+  `:<major>.<minor>` and `:latest`.
+
+Required GitHub repo secrets:
+
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`

@@ -1,0 +1,120 @@
+# Build and push the worker image to Docker Hub.
+#
+# Triggers
+#   - push tag v* -> :<version>
+#   - stable push tag vX.Y.Z -> also :<major>.<minor> and :latest
+#
+# Releases are explicit — only tags publish. Pushes to main run the
+# normal CI workflows but do not touch the registry.
+#
+# Required repo secrets
+#   - DOCKERHUB_USERNAME
+#   - DOCKERHUB_TOKEN
+
+name: Docker
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: tztcloud/livepeer-openai-worker-node
+
+jobs:
+  is-stable:
+    runs-on: ubuntu-latest
+    outputs:
+      stable: ${{ steps.s.outputs.stable }}
+    steps:
+      - id: s
+        run: |
+          if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: build & push to Docker Hub
+    needs: is-stable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            echo
+            echo "--- diff ---"
+            gofmt -d .
+            exit 1
+          fi
+
+      - name: verify go.mod / go.sum are tidy
+        run: |
+          cp go.mod go.mod.before
+          [ -f go.sum ] && cp go.sum go.sum.before || true
+          go mod tidy
+          if ! diff -u go.mod.before go.mod > /dev/null; then
+            echo "::error::go mod tidy produced changes — commit them."
+            diff -u go.mod.before go.mod || true
+            exit 1
+          fi
+          if [ -f go.sum.before ] && ! diff -u go.sum.before go.sum > /dev/null; then
+            echo "::error::go mod tidy changed go.sum — commit it."
+            diff -u go.sum.before go.sum || true
+            exit 1
+          fi
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.11.4
+
+      - name: custom lints
+        run: go run ./lint/payment-middleware-check --root .
+
+      - name: go test
+        run: go test ./...
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute image tags + labels
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ needs.is-stable.outputs.stable == 'true' }}
+            type=raw,value=latest,enable=${{ needs.is-stable.outputs.stable == 'true' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
