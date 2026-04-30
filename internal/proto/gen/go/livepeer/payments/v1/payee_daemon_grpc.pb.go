@@ -53,7 +53,7 @@ type PayeeDaemonClient interface {
 	// Return the daemon's full configured capability catalog. The worker-node
 	// calls this at startup to cross-check its own worker.yaml parse against
 	// the daemon's — mismatch is a fail-closed condition. Also drives the
-	// worker's /capabilities HTTP response.
+	// worker's /registry/offerings projection/cross-check surface.
 	ListCapabilities(ctx context.Context, in *ListCapabilitiesRequest, opts ...grpc.CallOption) (*ListCapabilitiesResponse, error)
 	// Validate an incoming payment blob, credit the sender's balance by the
 	// payment's expected value, and queue any winning tickets for redemption.
@@ -188,7 +188,7 @@ type PayeeDaemonServer interface {
 	// Return the daemon's full configured capability catalog. The worker-node
 	// calls this at startup to cross-check its own worker.yaml parse against
 	// the daemon's — mismatch is a fail-closed condition. Also drives the
-	// worker's /capabilities HTTP response.
+	// worker's /registry/offerings projection/cross-check surface.
 	ListCapabilities(context.Context, *ListCapabilitiesRequest) (*ListCapabilitiesResponse, error)
 	// Validate an incoming payment blob, credit the sender's balance by the
 	// payment's expected value, and queue any winning tickets for redemption.

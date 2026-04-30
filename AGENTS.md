@@ -16,7 +16,7 @@ OpenAI-compatible requests to the configured backend for each
 - How to plan work: [PLANS.md](PLANS.md)
 - Product mental model: [PRODUCT_SENSE.md](PRODUCT_SENSE.md)
 - Harness philosophy: [docs/references/openai-harness.pdf](docs/references/openai-harness.pdf)
-- worker.yaml schema (worker-side): [`internal/config/parse.go`](internal/config/parse.go) — worker-owned config file parsed only by this binary
+- worker.yaml schema (shared worker/receiver contract): [`internal/config/parse.go`](internal/config/parse.go) — worker validates worker-facing fields and captures `payment_daemon` opaquely from the shared file
 
 ## Knowledge base layout
 
