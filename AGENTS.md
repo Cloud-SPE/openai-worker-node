@@ -10,7 +10,7 @@ This repository hosts `openai-worker-node`: the HTTP adapter that sits between `
 - How to plan work: [PLANS.md](PLANS.md)
 - Product mental model: [PRODUCT_SENSE.md](PRODUCT_SENSE.md)
 - Harness philosophy: [docs/references/openai-harness.pdf](docs/references/openai-harness.pdf)
-- worker.yaml schema (worker-side): [`internal/config/parse.go`](internal/config/parse.go) — the worker carries its own copy of the fields it reads
+- worker.yaml schema (worker-side): [`internal/config/parse.go`](internal/config/parse.go) — worker-owned config file parsed only by this binary
 
 ## Knowledge base layout
 
@@ -54,7 +54,7 @@ Lints enforce this in CI. See [docs/design-docs/architecture.md](docs/design-doc
 
 1. **Payment is auth.** Every paid HTTP route MUST pass through the payment middleware before reaching a backend. The middleware calls `PayeeDaemon.ProcessPayment` + `DebitBalance`; skipping either is a security bug, not a style issue. Enforced by a custom lint on the capability-module registration surface.
 2. **Fail-closed on config.** `worker.yaml` parse errors, daemon/worker capability mismatch, or missing backend URLs cause refuse-to-start. No partial-start fallbacks.
-3. **worker.yaml schema is a runtime contract, not a build dep.** The worker defines its own view of `worker.yaml` in `internal/config/` covering only fields it reads. Daemon-section fields are accepted (so a single shared file works) but not validated here — the daemon validates its own section. Drift between worker and daemon is caught at startup via `VerifyDaemonCatalog`, not by the compiler. Trade-off: drift becomes a runtime failure, not a build failure; benefit: each side ships independently.
+3. **Split config ownership.** The worker owns `worker.yaml` in `internal/config/`; `livepeer-payment-daemon` owns its separate `payment-daemon.yaml`. Drift between the two capability catalogs is caught at startup via `VerifyDaemonCatalog`, not by the compiler.
 4. **Providers boundary.** No cross-cutting dependency is imported outside `internal/providers/`.
 5. **No code without a plan.** Non-trivial work starts with an entry in `docs/exec-plans/active/`.
 6. **Test coverage ≥ 75% per package.** CI fails below this threshold. See `core-beliefs.md`.

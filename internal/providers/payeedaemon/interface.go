@@ -21,7 +21,7 @@ import (
 type Client interface {
 	// ListCapabilities returns the daemon's full configured catalog.
 	// Called once at worker startup; the worker fails closed if its
-	// own shared-YAML parse doesn't byte-match this response.
+	// own worker.yaml parse doesn't byte-match this response.
 	ListCapabilities(ctx context.Context) (ListCapabilitiesResult, error)
 
 	// GetQuote returns the daemon's TicketParams + per-model prices

@@ -93,7 +93,7 @@ Reconciliation direction is over-debit only (user decision). If actual < est the
 
 ## Cross-process contracts
 
-### worker.yaml (shared file, parsed independently)
+### worker.yaml (worker-owned file)
 Single file, bind-mounted into both the daemon and this worker. The worker carries its own copy of parsing/validation in [`internal/config/`](internal/config/), covering only the fields it reads (worker section + capabilities). The daemon owns its section and validates it independently. Drift between worker and daemon is caught at startup via `VerifyDaemonCatalog`, not at compile time. Daemon-side schema reference: [Cloud-SPE/livepeer-modules `payment-daemon` shared-yaml](https://github.com/Cloud-SPE/livepeer-modules/blob/main/payment-daemon/docs/design-docs/shared-yaml.md).
 
 ### Payee daemon gRPC
@@ -102,14 +102,14 @@ Sources live in [`internal/proto/livepeer/payments/v1/`](internal/proto/livepeer
 Startup sequence:
 1. Parse `--config` → in-memory `Config`.
 2. Dial payee-daemon unix socket.
-3. Call `PayeeDaemon.ListCapabilities`; assert equality with parsed `Config.Capabilities` and matching `protocol_version`. Fail-closed on mismatch.
+3. Call `PayeeDaemon.ListCapabilities`; assert equality with parsed `Config.Capabilities`. Fail-closed on mismatch.
 4. Register capability modules; bind HTTP listener.
 
 ### Bridge HTTP contract
 Defined in `docs/product-specs/`. Endpoints exposed:
 
 - `GET /health` — liveness + `protocol_version` + `max_concurrent` + `inflight`
-- `GET /capabilities` — mirrors `ListCapabilities`, minus daemon-only fields
+- `GET /capabilities` — mirrors the daemon catalog, plus the worker-owned `protocol_version`, and omits backend routing details
 - `GET /quote?sender=&capability=` — proxies to `PayeeDaemon.GetQuote`
 - `GET /quotes?sender=` — batched version of `/quote` over all capabilities
 - `POST /v1/<capability-path>` — paid work, one per capability

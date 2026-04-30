@@ -33,7 +33,7 @@ Non-negotiables that shape every decision in this repo.
 
 - [`../../../livepeer-modules-conventions/metrics-conventions.md`](../../../livepeer-modules-conventions/metrics-conventions.md) — authoritative naming, label, bucket, cardinality, and provider-boundary rules shared across all repos in the fleet
 - [Cloud-SPE/livepeer-modules `service-registry-daemon` observability](https://github.com/Cloud-SPE/livepeer-modules/blob/main/service-registry-daemon/docs/design-docs/observability.md) — reference implementation of the Recorder pattern this repo's metrics.md mirrors
-- [Cloud-SPE/livepeer-modules `payment-daemon` shared-yaml](https://github.com/Cloud-SPE/livepeer-modules/blob/main/payment-daemon/docs/design-docs/shared-yaml.md) — daemon-side counterpart of the `worker.yaml` runtime contract; the worker carries its own parse in [`../../../internal/config/`](../../../internal/config/)
+- [Cloud-SPE/livepeer-modules `payment-daemon` config](https://github.com/Cloud-SPE/livepeer-modules-project/blob/main/payment-daemon/docs/design-docs/payment-daemon-config.md) — daemon-side config model; the worker carries its own parse in [`../../../internal/config/`](../../../internal/config/)
 
 ## Conventions
 

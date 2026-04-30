@@ -2,10 +2,6 @@
 
 The payee-side HTTP adapter for Livepeer BYOC payment. Sits in front of local OpenAI-compatible inference backends (vLLM, diffusers, whisper, TTS, …), validates payment via a co-located `livepeer-payment-daemon` running over a unix socket, and serves paid requests from `openai-livepeer-bridge`.
 
-## Status
-
-Scaffolding. Tracked under [`docs/exec-plans/active/0001-repo-scaffold.md`](docs/exec-plans/active/0001-repo-scaffold.md). No source code yet.
-
 ## Architecture at a glance
 
 ```
@@ -14,7 +10,14 @@ bridge ── HTTPS ─▶ openai-worker-node ── gRPC ─▶ livepeer-paymen
                            └── HTTP ─▶ inference backends (vLLM / diffusers / whisper / …)
 ```
 
-One worker node = one config file (`worker.yaml`), bind-mounted into both the worker process and the payment daemon. Each (capability, model) pair routes to its own backend URL.
+One worker node = two config files:
+
+- `worker.yaml` for `openai-worker-node`
+- `payment-daemon.yaml` for `livepeer-payment-daemon`
+
+Each `(capability, model)` pair routes to its own backend URL on the
+worker side. The daemon carries the same catalog without `backend_url`;
+startup fails closed if the two catalogs drift.
 
 Capabilities (v1):
 
@@ -38,7 +41,7 @@ Video generation, FFMPEG live transcoding, and custom workloads are backlog.
 
 ## Contracts shared with the payment daemon
 
-- **YAML schema:** the worker parses its own copy of the schema in [`internal/config/`](internal/config/). The daemon parses the same `worker.yaml` independently. Drift is detected at runtime via the daemon-catalog cross-check.
+- **YAML schema:** the worker parses `worker.yaml` in [`internal/config/`](internal/config/). The daemon parses a separate `payment-daemon.yaml`. Drift between the two capability catalogs is detected at runtime via the daemon-catalog cross-check.
 - **gRPC API:** the `.proto` definitions in [`internal/proto/livepeer/payments/v1/`](internal/proto/livepeer/payments/v1/) are wire-compatible with the daemon's. Regenerate Go stubs with `make proto`.
 
 ## License

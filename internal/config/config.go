@@ -6,20 +6,21 @@ import (
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
 )
 
-// CurrentProtocolVersion is the worker.yaml protocol_version this build
-// understands. Compared against PayeeDaemon.ListCapabilities at startup
-// when verify_daemon_consistency_on_start is true.
-const CurrentProtocolVersion = 1
+// CurrentProtocolVersion is the worker-owned HTTP/metrics contract
+// version for this build. It is no longer shared with the daemon's
+// config or gRPC surface; daemon verification uses catalog equality
+// only.
+const CurrentProtocolVersion = 3
 
 // Config is the worker's projection of worker.yaml.
 //
-// Daemon-only fields in worker.yaml are intentionally not modeled here —
-// the daemon parses + validates its own section. The capabilities block
-// is flattened into a (CapabilityID, ModelID) → ModelRoute map for O(1)
-// routing in the middleware.
+// worker.yaml is worker-owned in v3: it carries only worker fields and
+// capability routing metadata. The capabilities block is flattened into
+// a (CapabilityID, ModelID) -> ModelRoute map for O(1) routing in the
+// middleware.
 type Config struct {
-	// ProtocolVersion carried through from the YAML. Compared against
-	// PayeeDaemon.ListCapabilities.protocol_version at startup.
+	// ProtocolVersion is the worker's own surface version. It is stamped
+	// from CurrentProtocolVersion, not read from YAML.
 	ProtocolVersion int32
 
 	// Worker holds the worker-only fields (http_listen,
@@ -84,9 +85,9 @@ type ModelRoute struct {
 // New constructs a *Config from its parts, building the flat Route map
 // from the ordered capability list. Used by Load (after parsing
 // worker.yaml) and by tests that build fixtures in memory.
-func New(protocolVersion int32, w WorkerSection, ordered []CapabilityEntry) *Config {
+func New(w WorkerSection, ordered []CapabilityEntry) *Config {
 	cfg := &Config{
-		ProtocolVersion: protocolVersion,
+		ProtocolVersion: CurrentProtocolVersion,
 		Worker:          w,
 		Capabilities: CapabilityCatalog{
 			Ordered: append([]CapabilityEntry(nil), ordered...),

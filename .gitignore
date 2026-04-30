@@ -22,4 +22,6 @@ vendor/
 .env
 .env.local
 worker.yaml
+payment-daemon.yaml
 !worker.example.yaml
+!payment-daemon.example.yaml

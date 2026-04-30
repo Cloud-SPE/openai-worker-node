@@ -23,7 +23,7 @@ service PayeeDaemon {
   rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse);
 
   // Return the daemon's full configured capability catalog. The worker-node
-  // calls this at startup to cross-check its own shared-YAML parse against
+  // calls this at startup to cross-check its own worker.yaml parse against
   // the daemon's — mismatch is a fail-closed condition. Also drives the
   // worker's /capabilities HTTP response.
   rpc ListCapabilities(ListCapabilitiesRequest) returns (ListCapabilitiesResponse);
@@ -97,9 +97,8 @@ message ModelPrice {
 message ListCapabilitiesRequest {}
 
 message ListCapabilitiesResponse {
-  // Matches `protocol_version` in the shared worker.yaml. Worker-node uses
-  // this to detect daemon/worker version skew before comparing payload.
-  int32 protocol_version = 1;
+  reserved 1;
+  reserved "protocol_version";
 
   // Full capability catalog as parsed by the daemon at startup. Ordered
   // by capability string, then model name, for deterministic comparison.

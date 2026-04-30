@@ -21,7 +21,6 @@ import (
 func buildFixtureWithCap(t *testing.T, capN int) *testFixture {
 	t.Helper()
 	cfg := config.New(
-		config.CurrentProtocolVersion,
 		config.WorkerSection{
 			HTTPListen:            "127.0.0.1:0",
 			PaymentDaemonSocket:   "/tmp/fake.sock",

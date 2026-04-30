@@ -22,9 +22,6 @@ func VerifyDaemonCatalog(cfg *Config, daemon payeedaemon.ListCapabilitiesResult)
 	if cfg == nil {
 		return fmt.Errorf("verify: nil config")
 	}
-	if cfg.ProtocolVersion != daemon.ProtocolVersion {
-		return fmt.Errorf("verify: protocol_version mismatch: config=%d daemon=%d (upgrade one side to match)", cfg.ProtocolVersion, daemon.ProtocolVersion)
-	}
 	if got, want := len(daemon.Capabilities), len(cfg.Capabilities.Ordered); got != want {
 		return fmt.Errorf("verify: capability count mismatch: config has %d, daemon has %d", want, got)
 	}

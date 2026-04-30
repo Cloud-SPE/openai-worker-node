@@ -1,0 +1,46 @@
+# Annotated payment-daemon.yaml — Arbitrum One mainnet, chat-only smoke.
+#
+# Parsed by livepeer-payment-daemon v3+. This file is distinct from the
+# worker's worker.yaml; keep the capabilities/prices in both files
+# byte-identical or the worker will refuse to start when
+# verify_daemon_consistency_on_start is true.
+#
+# Copy this file to payment-daemon.yaml at the repo root (gitignored),
+# edit the placeholders, and let compose mount it at
+# /etc/livepeer/payment-daemon.yaml inside the daemon container.
+
+grpc_listen: "unix:///var/run/livepeer/payment-daemon.sock"
+
+# The Ethereum address that receives tickets. Must match:
+#   - the keystore used by the daemon, or
+#   - your cold orch address when running with --orch-address.
+recipient_eth_address: "0xREPLACE_WITH_RECIPIENT_ETH_ADDRESS"
+
+broker:
+  # Production = ethereum (real on-chain TicketBroker). For local dev,
+  # switch mode to fake, drop rpc_url/ticket_broker_contract, and add
+  # fake_sender_balances_wei entries.
+  mode: ethereum
+  rpc_url: "https://arb1.arbitrum.io/rpc"
+  ticket_broker_contract: "0xa8bB618B1520E284046F3dFc448851A1Ff26e41B"
+
+  # Dev example:
+  # mode: fake
+  # fake_sender_balances_wei:
+  #   "0xBRIDGE_ADDR_HERE": "1000000000000000000"
+
+keystore:
+  path: /etc/livepeer/keystore.json
+  passphrase_env: LIVEPEER_KEYSTORE_PASSPHRASE
+
+store:
+  kind: bolt
+  path: /var/lib/livepeer/payment-daemon.db
+
+capabilities:
+  - capability: "openai:/v1/chat/completions"
+    work_unit: token
+    models:
+      - model: "gemma4:26b"
+        price_per_work_unit_wei: "1250000"
+

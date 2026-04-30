@@ -298,9 +298,6 @@ func (*ListCapabilitiesRequest) Descriptor() ([]byte, []int) {
 
 type ListCapabilitiesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Matches `protocol_version` in the shared worker.yaml. Worker-node uses
-	// this to detect daemon/worker version skew before comparing payload.
-	ProtocolVersion int32 `protobuf:"varint,1,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
 	// Full capability catalog as parsed by the daemon at startup. Ordered
 	// by capability string, then model name, for deterministic comparison.
 	Capabilities  []*CapabilityEntry `protobuf:"bytes,2,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
@@ -336,13 +333,6 @@ func (x *ListCapabilitiesResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListCapabilitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListCapabilitiesResponse) Descriptor() ([]byte, []int) {
 	return file_livepeer_payments_v1_payee_daemon_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *ListCapabilitiesResponse) GetProtocolVersion() int32 {
-	if x != nil {
-		return x.ProtocolVersion
-	}
-	return 0
 }
 
 func (x *ListCapabilitiesResponse) GetCapabilities() []*CapabilityEntry {
@@ -1249,10 +1239,9 @@ const file_livepeer_payments_v1_payee_daemon_proto_rawDesc = "" +
 	"\x05model\x18\x01 \x01(\tR\x05model\x12>\n" +
 	"\n" +
 	"price_info\x18\x02 \x01(\v2\x1f.livepeer.payments.v1.PriceInfoR\tpriceInfo\"\x19\n" +
-	"\x17ListCapabilitiesRequest\"\x90\x01\n" +
-	"\x18ListCapabilitiesResponse\x12)\n" +
-	"\x10protocol_version\x18\x01 \x01(\x05R\x0fprotocolVersion\x12I\n" +
-	"\fcapabilities\x18\x02 \x03(\v2%.livepeer.payments.v1.CapabilityEntryR\fcapabilities\"\x88\x01\n" +
+	"\x17ListCapabilitiesRequest\"}\n" +
+	"\x18ListCapabilitiesResponse\x12I\n" +
+	"\fcapabilities\x18\x02 \x03(\v2%.livepeer.payments.v1.CapabilityEntryR\fcapabilitiesJ\x04\b\x01\x10\x02R\x10protocol_version\"\x88\x01\n" +
 	"\x0fCapabilityEntry\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +

@@ -65,8 +65,7 @@ func (c *grpcClient) ListCapabilities(ctx context.Context) (ListCapabilitiesResu
 		})
 	}
 	return ListCapabilitiesResult{
-		ProtocolVersion: resp.GetProtocolVersion(),
-		Capabilities:    caps,
+		Capabilities: caps,
 	}, nil
 }
 

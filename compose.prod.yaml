@@ -20,22 +20,25 @@ name: livepeer-worker
 
 services:
   payment-daemon:
-    image: tztcloud/livepeer-payment-daemon:v1.1.2
+    image: tztcloud/livepeer-payment-daemon:${PAYMENT_IMAGE_TAG:-v3.0.0}
     restart: unless-stopped
     command:
       - --mode=receiver
       - --socket=/var/run/livepeer/payment-daemon.sock
       - --store-path=/var/lib/livepeer/payment-daemon.db
-      - --config=/etc/livepeer/worker.yaml
+      - --config=/etc/livepeer/payment-daemon.yaml
       - --chain-rpc=${CHAIN_RPC:?set CHAIN_RPC (Arbitrum One mainnet RPC URL)}
       - --keystore-path=/etc/livepeer/keystore.json
       - --keystore-password-file=/etc/livepeer/keystore-password
-      - --redemption-interval=30s
-      - --log-level=${DAEMON_LOG_LEVEL:-info}
+      - --orch-address=${ORCH_ADDRESS:-}
+      - --min-balance-wei=${MIN_BALANCE_WEI:-5000000000000000}
+      - --log-level=${PAYMENT_LOG_LEVEL:-info}
+      - --log-format=${PAYMENT_LOG_FORMAT:-json}
+      - --metrics-listen=${PAYMENT_METRICS_PORT:+:${PAYMENT_METRICS_PORT}}
     volumes:
-      - ${WORKER_YAML_PATH:-./worker.yaml}:/etc/livepeer/worker.yaml:ro
-      - ${RECIPIENT_KEYSTORE_PATH:-./keystore.json}:/etc/livepeer/keystore.json:ro
-      - ${RECIPIENT_KEYSTORE_PASSWORD_PATH:-./keystore-password}:/etc/livepeer/keystore-password:ro
+      - ${PAYMENT_DAEMON_CONFIG_PATH:-./payment-daemon.yaml}:/etc/livepeer/payment-daemon.yaml:ro
+      - ${PAYMENT_KEYSTORE_PATH:-./keystore.json}:/etc/livepeer/keystore.json:ro
+      - ${PAYMENT_KEYSTORE_PASSWORD_PATH:-./keystore-password}:/etc/livepeer/keystore-password:ro
       - payment-daemon-sock:/var/run/livepeer
       - payment-daemon-data:/var/lib/livepeer
     logging:
@@ -52,19 +55,19 @@ services:
       - no-new-privileges:true
 
   openai-worker:
-    image: tztcloud/livepeer-openai-worker-node:v1.1.3
+    image: tztcloud/livepeer-openai-worker-node:${WORKER_IMAGE_TAG:-v3.0.0}
     restart: unless-stopped
     depends_on:
       - payment-daemon
     command:
       - --config=/etc/livepeer/worker.yaml
       - --log-level=${WORKER_LOG_LEVEL:-info}
-      # METRICS_PORT (default empty) enables the Prometheus /metrics
+      # WORKER_METRICS_PORT (default empty) enables the Prometheus /metrics
       # listener inside the container. See .env.example + docs/operations
       # /running-with-docker.md#observability.
-      - --metrics-listen=${METRICS_PORT:+:${METRICS_PORT}}
+      - --metrics-listen=${WORKER_METRICS_PORT:+:${WORKER_METRICS_PORT}}
     volumes:
-      - ${WORKER_YAML_PATH:-./worker.yaml}:/etc/livepeer/worker.yaml:ro
+      - ${WORKER_CONFIG_PATH:-./worker.yaml}:/etc/livepeer/worker.yaml:ro
       - payment-daemon-sock:/var/run/livepeer:ro
     ports:
       # Published to the host so cloudflared (if running outside docker)
@@ -72,11 +75,11 @@ services:
       # block if cloudflared shares the cf-tunnel network and reaches
       # the container by name.
       - '${WORKER_HOST_PORT:-8080}:8080'
-      # Metrics port — published only when METRICS_PORT is set in .env.
+      # Metrics port — published only when WORKER_METRICS_PORT is set in .env.
       # Bind to 127.0.0.1 if you only want a local Prometheus scraper to
       # reach it (recommended); leave bare for cluster-wide scraping.
-      # Uncomment after setting METRICS_PORT in .env:
-      #   - '127.0.0.1:${METRICS_PORT}:${METRICS_PORT}'
+      # Uncomment after setting WORKER_METRICS_PORT in .env:
+      #   - '127.0.0.1:${WORKER_METRICS_PORT}:${WORKER_METRICS_PORT}'
     networks:
       - default
       - cf-tunnel

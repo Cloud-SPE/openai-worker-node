@@ -16,27 +16,19 @@ import (
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
 )
 
-// yamlConfig is the on-disk worker.yaml shape from the worker's
-// perspective. The daemon section is captured as a yaml.Node so the
-// worker accepts a co-tenant-shared file without needing to know the
-// daemon's schema. KnownFields(true) still applies at the top level —
-// unknown sibling keys at root are rejected as typos.
+// yamlConfig is the on-disk worker.yaml shape in the worker-owned v3
+// config model. The daemon owns its own payment-daemon.yaml; this file
+// contains only worker fields plus the capability/backend catalog.
 type yamlConfig struct {
-	ProtocolVersion int              `yaml:"protocol_version"`
-	PaymentDaemon   yaml.Node        `yaml:"payment_daemon"`
-	Worker          yamlWorker       `yaml:"worker"`
-	Capabilities    []yamlCapability `yaml:"capabilities"`
-}
-
-type yamlWorker struct {
-	HTTPListen                     string `yaml:"http_listen"`
-	PaymentDaemonSocket            string `yaml:"payment_daemon_socket"`
-	MaxConcurrentRequests          int    `yaml:"max_concurrent_requests"`
-	VerifyDaemonConsistencyOnStart bool   `yaml:"verify_daemon_consistency_on_start"`
+	HTTPListen                     string           `yaml:"http_listen"`
+	PaymentDaemonSocket            string           `yaml:"payment_daemon_socket"`
+	MaxConcurrentRequests          int              `yaml:"max_concurrent_requests"`
+	VerifyDaemonConsistencyOnStart bool             `yaml:"verify_daemon_consistency_on_start"`
+	Capabilities                   []yamlCapability `yaml:"capabilities"`
 
 	// Optional sections accepted but not consumed by the current worker.
-	// Listed explicitly so KnownFields(true) doesn't reject a shared
-	// worker.yaml that includes them for the daemon or future modules.
+	// Listed explicitly so KnownFields(true) doesn't reject a
+	// worker-owned file that includes future worker-side sections.
 	ServiceRegistryPublisher *yaml.Node `yaml:"service_registry_publisher,omitempty"`
 }
 
@@ -45,10 +37,10 @@ type yamlCapability struct {
 	WorkUnit   string         `yaml:"work_unit"`
 	Offerings  []yamlOffering `yaml:"offerings"`
 
-	// Streaming-only knobs. Optional; not used by the current worker
-	// modules (none stream yet) but accepted so a shared worker.yaml
-	// can declare them without tripping KnownFields(true).
-	DebitCadenceSeconds        int `yaml:"debit_cadence_seconds,omitempty"`
+		// Streaming-only knobs. Optional; not used by the current worker
+		// modules (none stream yet) but accepted so the worker can carry
+		// future streaming settings without tripping KnownFields(true).
+		DebitCadenceSeconds        int `yaml:"debit_cadence_seconds,omitempty"`
 	SufficientMinRunwaySeconds int `yaml:"sufficient_min_runway_seconds,omitempty"`
 	SufficientGraceSeconds     int `yaml:"sufficient_grace_seconds,omitempty"`
 }
@@ -62,8 +54,8 @@ type yamlOffering struct {
 var capabilityRE = regexp.MustCompile(`^[a-z][a-z0-9]*:.+$`)
 
 // knownWorkUnits is the closed set of accepted work_unit identifiers
-// for CurrentProtocolVersion. Adding a unit requires bumping the
-// protocol version on both worker and daemon in lockstep.
+// for CurrentProtocolVersion. Adding a unit requires a worker contract
+// bump and a matching daemon catalog implementation.
 var knownWorkUnits = map[string]struct{}{
 	"token":                 {},
 	"character":             {},
@@ -99,24 +91,18 @@ func parseReader(r io.Reader) (*yamlConfig, error) {
 	return &cfg, nil
 }
 
-// validate enforces the worker-relevant invariants. payment_daemon.* is
-// intentionally not validated — the daemon validates its own section
-// and refuses to start on errors, so the worker fails fast at gRPC
-// dial time anyway.
+// validate enforces the worker-relevant invariants.
 func validate(cfg *yamlConfig) error {
 	if cfg == nil {
 		return errors.New("config.validate: nil config")
 	}
-	if cfg.ProtocolVersion != CurrentProtocolVersion {
-		return fmt.Errorf("protocol_version: got %d, expected %d", cfg.ProtocolVersion, CurrentProtocolVersion)
-	}
-	if err := validateWorker(&cfg.Worker); err != nil {
+	if err := validateWorker(cfg); err != nil {
 		return err
 	}
 	return validateCapabilities(cfg.Capabilities)
 }
 
-func validateWorker(w *yamlWorker) error {
+func validateWorker(w *yamlConfig) error {
 	if w.HTTPListen == "" {
 		return errors.New("worker.http_listen: required")
 	}
@@ -155,7 +141,7 @@ func validateCapability(i int, c *yamlCapability) error {
 		return fmt.Errorf("%s.work_unit: must be one of %s (got %q)", prefix, strings.Join(sortedKeys(knownWorkUnits), "|"), c.WorkUnit)
 	}
 	if len(c.Offerings) == 0 {
-		return fmt.Errorf("%s.models: at least one model required", prefix)
+		return fmt.Errorf("%s.offerings: at least one offering required", prefix)
 	}
 	seen := make(map[string]struct{}, len(c.Offerings))
 	for j, m := range c.Offerings {
@@ -163,7 +149,7 @@ func validateCapability(i int, c *yamlCapability) error {
 			return err
 		}
 		if _, dup := seen[m.Model]; dup {
-			return fmt.Errorf("%s.models[%d].model: duplicate %q within capability", prefix, j, m.Model)
+			return fmt.Errorf("%s.offerings[%d].id: duplicate %q within capability", prefix, j, m.Model)
 		}
 		seen[m.Model] = struct{}{}
 	}
@@ -171,9 +157,9 @@ func validateCapability(i int, c *yamlCapability) error {
 }
 
 func validateOffering(capPrefix string, j int, m *yamlOffering) error {
-	prefix := fmt.Sprintf("%s.models[%d]", capPrefix, j)
+	prefix := fmt.Sprintf("%s.offerings[%d]", capPrefix, j)
 	if m.Model == "" {
-		return fmt.Errorf("%s.model: required", prefix)
+		return fmt.Errorf("%s.id: required", prefix)
 	}
 	if m.PricePerWorkUnitWei == "" {
 		return fmt.Errorf("%s.price_per_work_unit_wei: required", prefix)
@@ -211,11 +197,11 @@ func projectFromYAML(y *yamlConfig) *Config {
 		}
 		ordered = append(ordered, entry)
 	}
-	return New(int32(y.ProtocolVersion), WorkerSection{
-		HTTPListen:                     y.Worker.HTTPListen,
-		PaymentDaemonSocket:            y.Worker.PaymentDaemonSocket,
-		MaxConcurrentRequests:          y.Worker.MaxConcurrentRequests,
-		VerifyDaemonConsistencyOnStart: y.Worker.VerifyDaemonConsistencyOnStart,
+	return New(WorkerSection{
+		HTTPListen:                     y.HTTPListen,
+		PaymentDaemonSocket:            y.PaymentDaemonSocket,
+		MaxConcurrentRequests:          y.MaxConcurrentRequests,
+		VerifyDaemonConsistencyOnStart: y.VerifyDaemonConsistencyOnStart,
 	}, ordered)
 }
 

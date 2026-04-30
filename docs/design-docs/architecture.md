@@ -118,10 +118,10 @@ response complete
 
 ## Startup sequence
 
-1. Parse `--config /etc/livepeer/worker.yaml` via `sharedyaml.Parse`.
+1. Parse `--config /etc/livepeer/worker.yaml` via the worker's local config package.
 2. Project to worker-internal `Config` (worker-only fields + per-capability model→backend map).
 3. Dial `PayeeDaemon` unix socket.
-4. `PayeeDaemon.ListCapabilities` → compare `protocol_version` + capability/model/price tuples to local parse.
+4. `PayeeDaemon.ListCapabilities` → compare capability/model/price tuples to local parse.
    - Mismatch → log diff, exit non-zero.
 5. Instantiate each capability module from config.
 6. Register routes; bind HTTP listener.

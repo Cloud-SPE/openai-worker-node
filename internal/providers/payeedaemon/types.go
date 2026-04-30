@@ -33,8 +33,7 @@ type DebitBalanceResult struct {
 // in domain types. Used at startup to cross-check against the worker's
 // own worker.yaml parse.
 type ListCapabilitiesResult struct {
-	ProtocolVersion int32
-	Capabilities    []Capability
+	Capabilities []Capability
 }
 
 // Capability mirrors paymentsv1.CapabilityEntry.

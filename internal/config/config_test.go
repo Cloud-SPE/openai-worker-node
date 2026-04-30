@@ -10,7 +10,6 @@ import (
 
 func goodConfig() *Config {
 	return New(
-		CurrentProtocolVersion,
 		WorkerSection{
 			HTTPListen:            "0.0.0.0:8080",
 			PaymentDaemonSocket:   "/tmp/lpd.sock",
@@ -63,7 +62,6 @@ func TestLookup_UnknownModel(t *testing.T) {
 func TestVerifyDaemonCatalog_HappyPath(t *testing.T) {
 	cfg := goodConfig()
 	daemon := payeedaemon.ListCapabilitiesResult{
-		ProtocolVersion: cfg.ProtocolVersion,
 		Capabilities: []payeedaemon.Capability{
 			{
 				Capability: "openai:/v1/chat/completions",
@@ -87,21 +85,9 @@ func TestVerifyDaemonCatalog_HappyPath(t *testing.T) {
 	}
 }
 
-func TestVerifyDaemonCatalog_ProtocolVersionMismatch(t *testing.T) {
-	cfg := goodConfig()
-	daemon := payeedaemon.ListCapabilitiesResult{
-		ProtocolVersion: cfg.ProtocolVersion + 1,
-	}
-	err := VerifyDaemonCatalog(cfg, daemon)
-	if err == nil || !strings.Contains(err.Error(), "protocol_version") {
-		t.Errorf("got %v, want error mentioning protocol_version", err)
-	}
-}
-
 func TestVerifyDaemonCatalog_PriceMismatch(t *testing.T) {
 	cfg := goodConfig()
 	daemon := payeedaemon.ListCapabilitiesResult{
-		ProtocolVersion: cfg.ProtocolVersion,
 		Capabilities: []payeedaemon.Capability{
 			{
 				Capability: "openai:/v1/chat/completions",
@@ -129,8 +115,7 @@ func TestVerifyDaemonCatalog_PriceMismatch(t *testing.T) {
 func TestVerifyDaemonCatalog_CountMismatch(t *testing.T) {
 	cfg := goodConfig()
 	daemon := payeedaemon.ListCapabilitiesResult{
-		ProtocolVersion: cfg.ProtocolVersion,
-		Capabilities:    nil,
+		Capabilities: nil,
 	}
 	err := VerifyDaemonCatalog(cfg, daemon)
 	if err == nil || !strings.Contains(err.Error(), "capability count mismatch") {

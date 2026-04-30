@@ -51,7 +51,7 @@ type PayeeDaemonClient interface {
 	// `model_prices` and are what the payer checks against when billing.
 	GetQuote(ctx context.Context, in *GetQuoteRequest, opts ...grpc.CallOption) (*GetQuoteResponse, error)
 	// Return the daemon's full configured capability catalog. The worker-node
-	// calls this at startup to cross-check its own shared-YAML parse against
+	// calls this at startup to cross-check its own worker.yaml parse against
 	// the daemon's — mismatch is a fail-closed condition. Also drives the
 	// worker's /capabilities HTTP response.
 	ListCapabilities(ctx context.Context, in *ListCapabilitiesRequest, opts ...grpc.CallOption) (*ListCapabilitiesResponse, error)
@@ -186,7 +186,7 @@ type PayeeDaemonServer interface {
 	// `model_prices` and are what the payer checks against when billing.
 	GetQuote(context.Context, *GetQuoteRequest) (*GetQuoteResponse, error)
 	// Return the daemon's full configured capability catalog. The worker-node
-	// calls this at startup to cross-check its own shared-YAML parse against
+	// calls this at startup to cross-check its own worker.yaml parse against
 	// the daemon's — mismatch is a fail-closed condition. Also drives the
 	// worker's /capabilities HTTP response.
 	ListCapabilities(context.Context, *ListCapabilitiesRequest) (*ListCapabilitiesResponse, error)

@@ -1,8 +1,9 @@
 # Running with Docker
 
 The `compose.yaml` at the repo root stands up `openai-worker-node`
-alongside `livepeer-payment-daemon` (receiver mode), sharing one
-`worker.yaml` and one unix socket.
+alongside `livepeer-payment-daemon` (receiver mode), with one
+worker-owned `worker.yaml`, one daemon-owned `payment-daemon.yaml`,
+and one shared unix socket.
 
 ## Prerequisites
 
@@ -12,17 +13,17 @@ The dev `compose.yaml` pulls the `payment-daemon` sidecar as a published image (
 
 ## First run (dev mode, fake broker)
 
-1. Copy the annotated example config:
+1. Copy the annotated example configs:
 
    ```bash
    cp worker.example.yaml worker.yaml
+   cp payment-daemon.example.yaml payment-daemon.yaml
    ```
 
-2. Edit `worker.yaml`:
-   - Set `payment_daemon.broker.mode: fake`.
-   - Drop `payment_daemon.broker.rpc_url` and
-     `payment_daemon.broker.ticket_broker_contract`.
-   - Add `payment_daemon.broker.fake_sender_balances_wei` with the
+2. Edit `payment-daemon.yaml` for fake-broker dev mode:
+   - Set `broker.mode: fake`.
+   - Drop `broker.rpc_url` and `broker.ticket_broker_contract`.
+   - Add `broker.fake_sender_balances_wei` with the
      bridge's ETH address and a generous balance, e.g.:
 
      ```yaml
@@ -33,14 +34,16 @@ The dev `compose.yaml` pulls the `payment-daemon` sidecar as a published image (
    - Replace `recipient_eth_address` with a real-looking address
      (the format check requires 0x + 40 hex chars, but the value
      doesn't need to be a real wallet in fake mode).
-   - Set `payment_daemon.keystore.path` to something writable inside
-     the container, or point at a pre-made keystore volume if you've
-     created one. Dev mode usually works without a keystore by using
-     fake-mode broker which skips signature operations entirely; see
-     the library's `running-the-daemon.md` for the full keystore
-     contract.
+   - Keep `capabilities[].models[]` byte-identical with the worker's
+     `capabilities[].offerings[]` prices and ids.
 
-3. Bring the stack up:
+3. Edit `worker.yaml`:
+   - Set each `capabilities[].offerings[].backend_url` to a reachable
+     inference backend.
+   - Keep each capability id, work unit, and price byte-identical with
+     `payment-daemon.yaml`.
+
+4. Bring the stack up:
 
    ```bash
    docker compose up --build
@@ -49,41 +52,42 @@ The dev `compose.yaml` pulls the `payment-daemon` sidecar as a published image (
    The first build takes 1–2 minutes (module download + two Go
    builds). Subsequent builds are fast thanks to layer caching.
 
-4. Verify:
+5. Verify:
 
    ```bash
    curl -s http://localhost:8080/health | jq
-   # {"status":"ok","protocol_version":1,"max_concurrent":32}
+   # {"status":"ok","protocol_version":3,"max_concurrent":16}
 
    curl -s http://localhost:8080/capabilities | jq
-   # {"protocol_version":1,"capabilities":[...]}
+   # {"protocol_version":3,"capabilities":[...]}
    ```
 
 ## Production mode (real broker)
 
-1. Keep `broker.mode: ethereum` in `worker.yaml`.
+1. Keep `broker.mode: ethereum` in `payment-daemon.yaml`.
 2. Point `rpc_url` at your JSON-RPC endpoint and set
    `ticket_broker_contract` to the `TicketBroker` contract address for
    the chain you're deploying to.
 3. Mount a real V3 JSON keystore into the `payment-daemon` container
    and set `keystore.path` + `keystore.passphrase_env` to match.
-4. Make sure every `capabilities[].models[].backend_url` points at
-   an actual inference server the worker can reach.
+4. Make sure every `capabilities[].offerings[].backend_url` in
+   `worker.yaml` points at an actual inference server the worker can
+   reach.
+5. Keep worker and daemon capability catalogs byte-identical apart from
+   `backend_url`.
 
-## How the shared YAML works
+## How the split config works
 
-The `worker.yaml` file is bind-mounted into BOTH containers at
-`/etc/livepeer/worker.yaml` via a read-only volume. Both processes
-parse it independently at startup; on mismatch (drift between the
-file they see and what they expect the peer to see) the worker
-refuses to start.
+The worker's `worker.yaml` is bind-mounted only into the worker
+container at `/etc/livepeer/worker.yaml`. The daemon's
+`payment-daemon.yaml` is bind-mounted only into the daemon container at
+`/etc/livepeer/payment-daemon.yaml`.
 
 The worker's startup cross-checks further by calling
 `PayeeDaemon.ListCapabilities` over the unix socket and asserting
-byte-equality with its own parse for protocol_version + every
-(capability, model, price) triple. Flipping
-`worker.verify_daemon_consistency_on_start: false` disables this
-check — only do so in dev where you know you're out of lockstep.
+byte-equality with its own parse for every `(capability, model, price)`
+triple. Flipping `verify_daemon_consistency_on_start: false` disables
+this check — only do so in dev where you know you're out of lockstep.
 
 ## Log level
 
@@ -95,8 +99,8 @@ chatty for production but invaluable during integration.
 ## Observability
 
 The worker can expose Prometheus metrics on a separate listener. Off
-by default — enable by setting `METRICS_PORT` in `.env` (or passing
-`--metrics-listen=:9093` directly when running the binary outside
+by default — enable by setting `WORKER_METRICS_PORT` in `.env` (or
+passing `--metrics-listen=:9093` directly when running the binary outside
 Docker).
 
 Two flags control the listener:
@@ -133,11 +137,11 @@ dashboards by VPS.
 
 `compose.prod.yaml` does NOT publish the metrics port to the host by
 default — the line is commented out. Uncomment after setting
-`METRICS_PORT`:
+`WORKER_METRICS_PORT`:
 
 ```yaml
 ports:
-  - '127.0.0.1:${METRICS_PORT}:${METRICS_PORT}'
+  - '127.0.0.1:${WORKER_METRICS_PORT}:${WORKER_METRICS_PORT}'
 ```
 
 Bind to `127.0.0.1` if your Prometheus runs on the same VPS;
@@ -148,10 +152,17 @@ sensitive.
 
 ## Upgrading
 
-To pick up a new payment-daemon release, bump `DAEMON_TAG` (or the pinned `image: tztcloud/livepeer-payment-daemon:vX.Y.Z` in `compose.prod.yaml`) and run:
+To pick up a new daemon or worker release, bump `PAYMENT_IMAGE_TAG` and
+`WORKER_IMAGE_TAG` in `.env` (or rely on the default `v3.0.0` pins in
+compose) and run:
 
 ```
 docker compose pull && docker compose up -d
 ```
 
-Schema or proto changes from the daemon side land here as PRs that update `internal/config/` (worker.yaml schema) and/or `internal/proto/livepeer/payments/v1/` (regenerate with `make proto`). Drift between this repo's pinned proto/schema and a running daemon is caught at startup by `VerifyDaemonCatalog` — the worker refuses to start on mismatch rather than serving wrong-priced requests.
+Schema or proto changes from the daemon side land here as PRs that
+update `internal/config/` (worker.yaml schema) and/or
+`internal/proto/livepeer/payments/v1/` (regenerate with `make proto`).
+Drift between this repo's pinned proto/schema and a running daemon is
+caught at startup by `VerifyDaemonCatalog` — the worker refuses to
+start on mismatch rather than serving wrong-priced requests.

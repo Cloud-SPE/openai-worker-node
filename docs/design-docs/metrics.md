@@ -26,7 +26,7 @@ Worker-specific:
 
 - **Allowed labels (this repo)**: `capability`, `model`, `unit`, `outcome`, `reason`, `error_class`, `method`. `(capability, model)` cardinality is bounded by `worker.yaml`.
 - **No per-customer drilldown surface in v1.** The worker doesn't see customers (the only payer-side identifier it has is `sender` address, which is forbidden). If per-request drilldown becomes a real need, it lands as an audit-log table in Phase 2 mirroring service-registry's pattern.
-- **Endpoint**: `--metrics-listen=:9093` (port `:9093` per [`port-allocation.md`](../../../livepeer-modules-conventions/port-allocation.md)). Off by default. `METRICS_PORT` in `.env.example` is the docker-compose convenience.
+- **Endpoint**: `--metrics-listen=:9093` (port `:9093` per [`port-allocation.md`](../../../livepeer-modules-conventions/port-allocation.md)). Off by default. `WORKER_METRICS_PORT` in `.env.example` is the docker-compose convenience for the worker listener; `PAYMENT_METRICS_PORT` controls the daemon side.
 
 ## Phase 1 catalog
 
