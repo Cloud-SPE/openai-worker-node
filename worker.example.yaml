@@ -33,14 +33,6 @@ payment_daemon:
     # fake_sender_balances_wei:
     #   "0xBRIDGE_ADDR_HERE": "1000000000000000000"
 
-  keystore:
-    path: /etc/livepeer/keystore.json
-    passphrase_env: LIVEPEER_KEYSTORE_PASSPHRASE
-
-  store:
-    kind: bolt
-    path: /var/lib/livepeer/payment-daemon.db
-
 worker:
   http_listen: "0.0.0.0:8080"
   payment_daemon_socket: /var/run/livepeer/payment-daemon.sock
@@ -59,7 +51,9 @@ worker:
 # Prices = wei per work-unit. The worker advertises them on
 # /registry/offerings and dispatches each request to the matching
 # backend_url. The daemon reads the same capability catalog from this
-# file and ignores backend_url.
+# file and ignores backend_url. Daemon keystore + state-db paths stay
+# container/CLI owned (see compose.yaml / compose.prod.yaml); they are
+# not part of worker.yaml.
 capabilities:
   - capability: "openai:/v1/chat/completions"
     work_unit: token

@@ -61,8 +61,10 @@ The dev `compose.yaml` pulls the `payment-daemon` sidecar as a published image (
    `ticket_broker_contract` to the `TicketBroker` contract address for
    the chain you're deploying to.
 3. Mount a real V3 JSON keystore into the `payment-daemon` container
-   and set `payment_daemon.keystore.path` +
-   `payment_daemon.keystore.passphrase_env` to match.
+   and set the daemon CLI / compose wiring to match:
+   `--keystore-path=/etc/livepeer/keystore.json`,
+   `--keystore-password-file=/etc/livepeer/keystore-password`, and
+   `--store-path=/var/lib/livepeer/payment-daemon.db`.
 4. Make sure every `capabilities[].offerings[].backend_url` in
    `worker.yaml` points at an actual inference server the worker can
    reach.
