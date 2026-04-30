@@ -37,10 +37,10 @@ type yamlCapability struct {
 	WorkUnit   string         `yaml:"work_unit"`
 	Offerings  []yamlOffering `yaml:"offerings"`
 
-		// Streaming-only knobs. Optional; not used by the current worker
-		// modules (none stream yet) but accepted so the worker can carry
-		// future streaming settings without tripping KnownFields(true).
-		DebitCadenceSeconds        int `yaml:"debit_cadence_seconds,omitempty"`
+	// Streaming-only knobs. Optional; not used by the current worker
+	// modules (none stream yet) but accepted so the worker can carry
+	// future streaming settings without tripping KnownFields(true).
+	DebitCadenceSeconds        int `yaml:"debit_cadence_seconds,omitempty"`
 	SufficientMinRunwaySeconds int `yaml:"sufficient_min_runway_seconds,omitempty"`
 	SufficientGraceSeconds     int `yaml:"sufficient_grace_seconds,omitempty"`
 }
