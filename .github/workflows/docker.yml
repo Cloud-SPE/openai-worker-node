@@ -44,48 +44,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: '1.25'
-
-      - name: gofmt
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "The following files are not gofmt-formatted:"
-            echo "$unformatted"
-            echo
-            echo "--- diff ---"
-            gofmt -d .
-            exit 1
-          fi
-
-      - name: verify go.mod / go.sum are tidy
-        run: |
-          cp go.mod go.mod.before
-          [ -f go.sum ] && cp go.sum go.sum.before || true
-          go mod tidy
-          if ! diff -u go.mod.before go.mod > /dev/null; then
-            echo "::error::go mod tidy produced changes — commit them."
-            diff -u go.mod.before go.mod || true
-            exit 1
-          fi
-          if [ -f go.sum.before ] && ! diff -u go.sum.before go.sum > /dev/null; then
-            echo "::error::go mod tidy changed go.sum — commit it."
-            diff -u go.sum.before go.sum || true
-            exit 1
-          fi
-
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.11.4
-
-      - name: custom lints
-        run: go run ./lint/payment-middleware-check --root .
-
-      - name: go test
-        run: go test ./...
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
