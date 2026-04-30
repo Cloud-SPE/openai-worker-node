@@ -2,7 +2,12 @@
 
 ## What this service is
 
-`openai-worker-node` is the payee-side HTTP adapter in the Livepeer BYOC payment architecture. It terminates OpenAI-compatible HTTP requests from `openai-livepeer-bridge`, validates the attached payment via a co-located `livepeer-payment-daemon` (receiver mode), forwards the request body to a local inference backend, and streams the response back.
+`openai-worker-node` is the payee-side HTTP adapter in the Livepeer
+Network Suite. It terminates OpenAI-compatible HTTP requests from
+`livepeer-openai-gateway`, validates the attached payment via a
+co-located `livepeer-payment-daemon` (receiver mode), forwards the
+request body to a local inference backend, and streams the response
+back.
 
 It replaces the go-livepeer orchestrator on the worker side: there is no transcoding network, no orchestrator pool, no on-chain service registration. The worker is discovered by the bridge via static config (`nodes.yaml`) and is known-to-be-paid-for only through the `livepeer-payment` HTTP header.
 
@@ -10,9 +15,9 @@ It replaces the go-livepeer orchestrator on the worker side: there is no transco
 
 ```
 ┌────────────────┐    HTTPS     ┌──────────────────────────────────────┐
-│ openai-        │  /v1/...     │ openai-worker-node  (this repo)      │
-│ livepeer-      │ ───────────▶ │  ┌────────────────────────────────┐  │
-│ bridge         │              │  │ HTTP router                    │  │
+│ livepeer-      │  /v1/...     │ openai-worker-node  (this repo)      │
+│ openai-gateway │ ───────────▶ │  ┌────────────────────────────────┐  │
+│                │              │  │ HTTP router                    │  │
 │                │ ◀─────────── │  │ ├─ payment middleware          │  │
 └────────────────┘  SSE/JSON    │  │ └─ capability modules          │  │
                                  │  │    (chat, embeddings, …)       │  │
@@ -93,8 +98,15 @@ Reconciliation direction is over-debit only (user decision). If actual < est the
 
 ## Cross-process contracts
 
-### worker.yaml (worker-owned file)
-Single file, bind-mounted into both the daemon and this worker. The worker carries its own copy of parsing/validation in [`internal/config/`](internal/config/), covering only the fields it reads (worker section + capabilities). The daemon owns its section and validates it independently. Drift between worker and daemon is caught at startup via `VerifyDaemonCatalog`, not at compile time. Daemon-side schema reference: [Cloud-SPE/livepeer-modules `payment-daemon` shared-yaml](https://github.com/Cloud-SPE/livepeer-modules/blob/main/payment-daemon/docs/design-docs/shared-yaml.md).
+### worker.yaml (shared worker/daemon file)
+Single file, bind-mounted into both the daemon and this worker. The
+worker carries its own copy of parsing/validation in
+[`internal/config/`](internal/config/), covering the fields it reads
+(`protocol_version`, optional worker metadata, `worker`, and
+`capabilities`) while capturing `payment_daemon` as opaque YAML. The
+daemon parses and validates its own section independently. Drift
+between worker and daemon is caught at startup via
+`VerifyDaemonCatalog`, not at compile time.
 
 ### Payee daemon gRPC
 Sources live in [`internal/proto/livepeer/payments/v1/`](internal/proto/livepeer/payments/v1/); generated Go in `internal/proto/gen/go/...`. The `.proto` files are wire-compatible copies of the daemon's; regenerate with `make proto`. This repo consumes the `PayeeDaemonClient` — it does not implement the service.
@@ -108,10 +120,8 @@ Startup sequence:
 ### Bridge HTTP contract
 Defined in `docs/product-specs/`. Endpoints exposed:
 
-- `GET /health` — liveness + `protocol_version` + `max_concurrent` + `inflight`
-- `GET /capabilities` — mirrors the daemon catalog, plus the worker-owned `protocol_version`, and omits backend routing details
-- `GET /quote?sender=&capability=` — proxies to `PayeeDaemon.GetQuote`
-- `GET /quotes?sender=` — batched version of `/quote` over all capabilities
+- `GET /health` — liveness + `api_version` + `protocol_version` + `max_concurrent` + `inflight`
+- `GET /registry/offerings` — canonical capability advertisement for orch-coordinator scrape; omits `backend_url`
 - `POST /v1/<capability-path>` — paid work, one per capability
 
 ## Explicit non-goals (v1)

@@ -1,7 +1,7 @@
 // Package main is the openai-worker-node binary entrypoint.
 //
 // Startup sequence:
-//  1. Parse --config; Load + Validate the worker-owned worker.yaml.
+//  1. Parse --config; Load + Validate the shared worker.yaml.
 //  2. Dial the payee daemon's unix socket.
 //  3. ListCapabilities; cross-check against the parsed config
 //     (unless worker.verify_daemon_consistency_on_start = false).
@@ -60,7 +60,7 @@ func main() {
 func run(args []string, stderr *os.File) int {
 	fs := flag.NewFlagSet("openai-worker-node", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	configPath := fs.String("config", "/etc/livepeer/worker.yaml", "path to the worker-owned worker.yaml")
+	configPath := fs.String("config", "/etc/livepeer/worker.yaml", "path to the shared worker.yaml")
 	logLevel := fs.String("log-level", "info", "minimum log level: error|warn|info|debug")
 	metricsListen := fs.String("metrics-listen", "", "host:port for the Prometheus /metrics HTTP listener; empty (default) disables it")
 	metricsMaxSeriesPerMetric := fs.Int("metrics-max-series-per-metric", 10000, "max distinct label tuples per Prometheus metric vec; 0 disables the cap")
@@ -85,6 +85,7 @@ func run(args []string, stderr *os.File) int {
 	}
 	logger.Info("config loaded",
 		"path", *configPath,
+		"api_version", cfg.APIVersion,
 		"protocol_version", cfg.ProtocolVersion,
 		"capabilities", len(cfg.Capabilities.Ordered),
 		"http_listen", cfg.Worker.HTTPListen,

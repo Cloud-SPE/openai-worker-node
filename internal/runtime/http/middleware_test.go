@@ -79,12 +79,23 @@ func buildFixture(t *testing.T) *testFixture {
 			{
 				Capability: "openai:/v1/chat/completions",
 				WorkUnit:   "token",
+				Extra: map[string]any{
+					"supports_streaming": true,
+				},
 				Offerings: []config.OfferingEntry{
-					{Model: "test-model", PricePerWorkUnitWei: "100", BackendURL: "http://backend.local:9000"},
+					{
+						Model:               "test-model",
+						PricePerWorkUnitWei: "100",
+						BackendURL:          "http://backend.local:9000",
+						Constraints: map[string]any{
+							"max_context_tokens": 8192,
+						},
+					},
 				},
 			},
 		},
 	)
+	cfg.WorkerEthAddress = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	payee := payeedaemon.NewFake()
 	mod := &fakeModule{
 		capability: "openai:/v1/chat/completions",
@@ -339,32 +350,65 @@ func TestHealthHandler(t *testing.T) {
 	if body["status"] != "ok" {
 		t.Errorf("status field: got %v, want ok", body["status"])
 	}
+	if fmt.Sprintf("%v", body["api_version"]) != fmt.Sprintf("%d", config.CurrentAPIVersion) {
+		t.Errorf("api_version: got %v", body["api_version"])
+	}
 	if fmt.Sprintf("%v", body["protocol_version"]) != fmt.Sprintf("%d", config.CurrentProtocolVersion) {
 		t.Errorf("protocol_version: got %v", body["protocol_version"])
 	}
 }
 
-func TestCapabilitiesHandler(t *testing.T) {
+func TestRegistryOfferingsHandler(t *testing.T) {
 	f := buildFixture(t)
 	RegisterUnpaidHandlers(f.mux, f.cfg)
-	req := httptest.NewRequest(nethttp.MethodGet, "/capabilities", nil)
+	req := httptest.NewRequest(nethttp.MethodGet, "/registry/offerings", nil)
 	rr := httptest.NewRecorder()
 	f.mux.Handler().ServeHTTP(rr, req)
 	if rr.Code != nethttp.StatusOK {
 		t.Fatalf("status: got %d, want 200", rr.Code)
 	}
 	raw, _ := io.ReadAll(rr.Body)
-	if !strings.Contains(string(raw), `"capability":"openai:/v1/chat/completions"`) {
-		t.Errorf("capabilities output missing capability: %s", raw)
+	if !strings.Contains(string(raw), `"worker_eth_address":"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`) {
+		t.Errorf("registry output missing worker_eth_address: %s", raw)
+	}
+	if !strings.Contains(string(raw), `"name":"openai:/v1/chat/completions"`) {
+		t.Errorf("registry output missing capability name: %s", raw)
 	}
 	if !strings.Contains(string(raw), `"id":"test-model"`) {
-		t.Errorf("capabilities output missing offering id: %s", raw)
+		t.Errorf("registry output missing offering id: %s", raw)
 	}
 	if !strings.Contains(string(raw), `"offerings":[`) {
-		t.Errorf("capabilities output missing offerings list: %s", raw)
+		t.Errorf("registry output missing offerings list: %s", raw)
+	}
+	if !strings.Contains(string(raw), `"extra":{"supports_streaming":true}`) {
+		t.Errorf("registry output missing extra object: %s", raw)
+	}
+	if !strings.Contains(string(raw), `"constraints":{"max_context_tokens":8192}`) {
+		t.Errorf("registry output missing constraints object: %s", raw)
 	}
 	if strings.Contains(string(raw), "backend_url") {
-		t.Errorf("capabilities output MUST NOT include backend_url: %s", raw)
+		t.Errorf("registry output MUST NOT include backend_url: %s", raw)
+	}
+}
+
+func TestRegistryOfferingsHandler_BearerAuth(t *testing.T) {
+	f := buildFixture(t)
+	f.cfg.AuthToken = "secret-token"
+	RegisterUnpaidHandlers(f.mux, f.cfg)
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/registry/offerings", nil)
+	rr := httptest.NewRecorder()
+	f.mux.Handler().ServeHTTP(rr, req)
+	if rr.Code != nethttp.StatusUnauthorized {
+		t.Fatalf("unauthenticated status: got %d, want 401", rr.Code)
+	}
+
+	req = httptest.NewRequest(nethttp.MethodGet, "/registry/offerings", nil)
+	req.Header.Set("Authorization", "Bearer secret-token")
+	rr = httptest.NewRecorder()
+	f.mux.Handler().ServeHTTP(rr, req)
+	if rr.Code != nethttp.StatusOK {
+		t.Fatalf("authenticated status: got %d, want 200", rr.Code)
 	}
 }
 

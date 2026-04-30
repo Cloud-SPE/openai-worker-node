@@ -35,6 +35,27 @@ func goodConfig() *Config {
 	)
 }
 
+func sharedYAML(extra string) string {
+	base := `
+protocol_version: 1
+payment_daemon:
+  recipient_eth_address: "0x1111111111111111111111111111111111111111"
+worker:
+  http_listen: "0.0.0.0:8080"
+  payment_daemon_socket: "/var/run/livepeer/payment-daemon.sock"
+  max_concurrent_requests: 16
+  verify_daemon_consistency_on_start: true
+capabilities:
+  - capability: "openai:/v1/chat/completions"
+    work_unit: token
+    offerings:
+      - id: "test-model"
+        price_per_work_unit_wei: "1250000"
+        backend_url: "http://backend:8000"
+`
+	return strings.TrimSpace(base + "\n" + extra)
+}
+
 func TestNew_FlatRouteMap(t *testing.T) {
 	cfg := goodConfig()
 	if got := len(cfg.Capabilities.Route); got != 3 {
@@ -120,5 +141,163 @@ func TestVerifyDaemonCatalog_CountMismatch(t *testing.T) {
 	err := VerifyDaemonCatalog(cfg, daemon)
 	if err == nil || !strings.Contains(err.Error(), "capability count mismatch") {
 		t.Errorf("got %v, want count-mismatch error", err)
+	}
+}
+
+func TestParseReader_SharedWorkerYAML(t *testing.T) {
+	cfg, err := parseReader(strings.NewReader(sharedYAML(`
+worker_eth_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+auth_token: "secret-token"
+`)))
+	if err != nil {
+		t.Fatalf("parseReader: %v", err)
+	}
+	if err := validate(cfg); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	projected := projectFromYAML(cfg)
+	if projected.ProtocolVersion != CurrentProtocolVersion {
+		t.Fatalf("protocol_version: got %d", projected.ProtocolVersion)
+	}
+	if projected.APIVersion != CurrentAPIVersion {
+		t.Fatalf("api_version: got %d", projected.APIVersion)
+	}
+	if projected.WorkerEthAddress != "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Fatalf("worker_eth_address: got %q", projected.WorkerEthAddress)
+	}
+	if projected.AuthToken != "secret-token" {
+		t.Fatalf("auth_token: got %q", projected.AuthToken)
+	}
+}
+
+func TestValidate_RejectsServiceRegistryPublisher(t *testing.T) {
+	cfg, err := parseReader(strings.NewReader(sharedYAML(`
+service_registry_publisher:
+  enabled: true
+`)))
+	if err != nil {
+		t.Fatalf("parseReader: %v", err)
+	}
+	err = validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "service_registry_publisher") {
+		t.Fatalf("got %v, want service_registry_publisher rejection", err)
+	}
+}
+
+func TestValidate_RejectsUnsupportedProtocolVersion(t *testing.T) {
+	cfg, err := parseReader(strings.NewReader(strings.Replace(sharedYAML(""), "protocol_version: 1", "protocol_version: 9", 1)))
+	if err != nil {
+		t.Fatalf("parseReader: %v", err)
+	}
+	err = validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "protocol_version=9") {
+		t.Fatalf("got %v, want protocol_version rejection", err)
+	}
+}
+
+func TestValidate_RejectsMissingPaymentDaemon(t *testing.T) {
+	cfg, err := parseReader(strings.NewReader(`
+protocol_version: 1
+worker:
+  http_listen: "0.0.0.0:8080"
+  payment_daemon_socket: "/var/run/livepeer/payment-daemon.sock"
+  max_concurrent_requests: 16
+  verify_daemon_consistency_on_start: true
+capabilities:
+  - capability: "openai:/v1/chat/completions"
+    work_unit: token
+    offerings:
+      - id: "test-model"
+        price_per_work_unit_wei: "1250000"
+        backend_url: "http://backend:8000"
+`))
+	if err != nil {
+		t.Fatalf("parseReader: %v", err)
+	}
+	err = validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "missing 'payment_daemon'") {
+		t.Fatalf("got %v, want payment_daemon rejection", err)
+	}
+}
+
+func TestValidate_RejectsBadWorkerEthAddress(t *testing.T) {
+	cfg, err := parseReader(strings.NewReader(sharedYAML(`
+worker_eth_address: "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+`)))
+	if err != nil {
+		t.Fatalf("parseReader: %v", err)
+	}
+	err = validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), "worker_eth_address") {
+		t.Fatalf("got %v, want worker_eth_address rejection", err)
+	}
+}
+
+func TestValidate_RejectsNonObjectExtraAndConstraints(t *testing.T) {
+	cfg, err := parseReader(strings.NewReader(`
+protocol_version: 1
+payment_daemon:
+  recipient_eth_address: "0x1111111111111111111111111111111111111111"
+worker:
+  http_listen: "0.0.0.0:8080"
+  payment_daemon_socket: "/var/run/livepeer/payment-daemon.sock"
+  max_concurrent_requests: 16
+  verify_daemon_consistency_on_start: true
+capabilities:
+  - capability: "openai:/v1/chat/completions"
+    work_unit: token
+    extra: "bad"
+    offerings:
+      - id: "test-model"
+        price_per_work_unit_wei: "1250000"
+        backend_url: "http://backend:8000"
+        constraints: [1, 2]
+`))
+	if err != nil {
+		if !strings.Contains(err.Error(), "JSON object") {
+			t.Fatalf("parseReader: %v", err)
+		}
+		return
+	}
+	err = validate(cfg)
+	if err == nil || !strings.Contains(err.Error(), ".extra") {
+		t.Fatalf("got %v, want extra rejection", err)
+	}
+}
+
+func TestProjectFromYAML_OptionalObjectsPassThrough(t *testing.T) {
+	cfg, err := parseReader(strings.NewReader(`
+protocol_version: 1
+payment_daemon:
+  recipient_eth_address: "0x1111111111111111111111111111111111111111"
+worker:
+  http_listen: "0.0.0.0:8080"
+  payment_daemon_socket: "/var/run/livepeer/payment-daemon.sock"
+  max_concurrent_requests: 16
+  verify_daemon_consistency_on_start: true
+capabilities:
+  - capability: "openai:/v1/chat/completions"
+    work_unit: token
+    extra:
+      supports_streaming: true
+    offerings:
+      - id: "test-model"
+        price_per_work_unit_wei: "1250000"
+        backend_url: "http://backend:8000"
+        constraints:
+          max_context_tokens: 8192
+`))
+	if err != nil {
+		t.Fatalf("parseReader: %v", err)
+	}
+	if err := validate(cfg); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	projected := projectFromYAML(cfg)
+	if got := projected.Capabilities.Ordered[0].Extra["supports_streaming"]; got != true {
+		t.Fatalf("extra: got %#v", projected.Capabilities.Ordered[0].Extra)
+	}
+	if got := projected.Capabilities.Ordered[0].Offerings[0].Constraints["max_context_tokens"]; got != 8192 {
+		t.Fatalf("constraints: got %#v", projected.Capabilities.Ordered[0].Offerings[0].Constraints)
 	}
 }

@@ -82,4 +82,6 @@ For SSE, a backend hangup mid-stream is indistinguishable from a clean end-of-st
 ## Cross-references
 
 - Module contract: [capability-modules.md](capability-modules.md).
-- Bridge-side SSE handling (include_usage injection, partial-success refunds): [`../../../openai-livepeer-bridge/docs/design-docs/streaming-semantics.md`](../../../openai-livepeer-bridge/docs/design-docs/streaming-semantics.md).
+- Gateway-side SSE handling (include_usage injection,
+  partial-success refunds) lives in the `livepeer-openai-gateway`
+  streaming semantics docs.

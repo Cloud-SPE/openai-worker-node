@@ -26,7 +26,7 @@ services:
       - --mode=receiver
       - --socket=/var/run/livepeer/payment-daemon.sock
       - --store-path=/var/lib/livepeer/payment-daemon.db
-      - --config=/etc/livepeer/payment-daemon.yaml
+      - --config=/etc/livepeer/worker.yaml
       - --chain-rpc=${CHAIN_RPC:?set CHAIN_RPC (Arbitrum One mainnet RPC URL)}
       - --keystore-path=/etc/livepeer/keystore.json
       - --keystore-password-file=/etc/livepeer/keystore-password
@@ -36,7 +36,7 @@ services:
       - --log-format=${PAYMENT_LOG_FORMAT:-json}
       - --metrics-listen=${PAYMENT_METRICS_PORT:+:${PAYMENT_METRICS_PORT}}
     volumes:
-      - ${PAYMENT_DAEMON_CONFIG_PATH:-./payment-daemon.yaml}:/etc/livepeer/payment-daemon.yaml:ro
+      - ${WORKER_CONFIG_PATH:-./worker.yaml}:/etc/livepeer/worker.yaml:ro
       - ${PAYMENT_KEYSTORE_PATH:-./keystore.json}:/etc/livepeer/keystore.json:ro
       - ${PAYMENT_KEYSTORE_PASSWORD_PATH:-./keystore-password}:/etc/livepeer/keystore-password:ro
       - payment-daemon-sock:/var/run/livepeer

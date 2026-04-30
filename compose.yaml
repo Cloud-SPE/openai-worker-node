@@ -1,8 +1,8 @@
 # Dev-friendly compose for the worker + payment daemon duo.
 #
 # The daemon is pulled as a published image; this repo has no source
-# dependency on the daemon. v3+ uses separate worker.yaml and
-# payment-daemon.yaml files.
+# dependency on the daemon. v3.0.1 uses a shared worker.yaml consumed
+# by both containers.
 #
 # Production deployments will:
 #   - Replace the fake broker mode with real `--chain-rpc` +
@@ -14,7 +14,7 @@
 #
 # Then hit the worker:
 #   curl http://localhost:8080/health
-#   curl http://localhost:8080/capabilities
+#   curl http://localhost:8080/registry/offerings
 
 services:
   payment-daemon:
@@ -23,7 +23,7 @@ services:
       - "--mode=receiver"
       - "--socket=/var/run/livepeer/payment-daemon.sock"
       - "--store-path=/var/lib/livepeer/payment-daemon.db"
-      - "--config=/etc/livepeer/payment-daemon.yaml"
+      - "--config=/etc/livepeer/worker.yaml"
       - "--log-level=${PAYMENT_LOG_LEVEL:-info}"
       - "--log-format=${PAYMENT_LOG_FORMAT:-text}"
       - "--chain-rpc=${CHAIN_RPC:-}"
@@ -33,7 +33,7 @@ services:
       - "--min-balance-wei=${MIN_BALANCE_WEI:-0}"
       - "--metrics-listen=${PAYMENT_METRICS_PORT:+:${PAYMENT_METRICS_PORT}}"
     volumes:
-      - ${PAYMENT_DAEMON_CONFIG_PATH:-./payment-daemon.yaml}:/etc/livepeer/payment-daemon.yaml:ro
+      - ${WORKER_CONFIG_PATH:-./worker.yaml}:/etc/livepeer/worker.yaml:ro
       - ${PAYMENT_KEYSTORE_PATH:-./keystore.json}:/etc/livepeer/keystore.json:ro
       - ${PAYMENT_KEYSTORE_PASSWORD_PATH:-./keystore-password}:/etc/livepeer/keystore-password:ro
       - payment-daemon-sock:/var/run/livepeer

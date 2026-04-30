@@ -24,15 +24,16 @@ Every paid HTTP route passes through the payment middleware — `ProcessPayment`
 
 Config parse error → refuse to start. Daemon/worker catalog mismatch → refuse to start. Missing backend URL for an advertised model → refuse to start. There is no "partial mode" where some capabilities work and others don't — the worker either serves its full advertised catalog or serves nothing.
 
-## 5. Worker and daemon own separate configs
+## 5. Worker and daemon share config but validate separately
 
-The worker owns `worker.yaml`; the daemon owns `payment-daemon.yaml`.
+The worker and receiver-mode daemon both parse the same `worker.yaml`.
 The worker carries its own schema definition in `internal/config/`,
-covering only worker fields and its capability/backend catalog. Drift
-between worker and daemon is caught at runtime via the daemon-catalog
-cross-check (`VerifyDaemonCatalog`) at startup, not at compile time.
-This trade — drift detection at startup, not build — is what lets each
-side ship and version independently.
+covering worker-facing fields plus the shared capability/backend
+catalog while capturing `payment_daemon` opaquely. Drift between worker
+and daemon is caught at runtime via the daemon-catalog cross-check
+(`VerifyDaemonCatalog`) at startup, not at compile time. This trade —
+drift detection at startup, not build — is what lets each side ship
+and version independently.
 
 ## 6. The providers boundary is the only cross-cutting boundary
 

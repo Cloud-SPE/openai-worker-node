@@ -16,25 +16,29 @@ import (
 	"github.com/Cloud-SPE/openai-worker-node/internal/types"
 )
 
-// yamlConfig is the on-disk worker.yaml shape in the worker-owned v3
-// config model. The daemon owns its own payment-daemon.yaml; this file
-// contains only worker fields plus the capability/backend catalog.
+// yamlConfig is the shared on-disk worker.yaml shape for the worker and
+// receiver-mode daemon in v3.0.1.
 type yamlConfig struct {
-	HTTPListen                     string           `yaml:"http_listen"`
-	PaymentDaemonSocket            string           `yaml:"payment_daemon_socket"`
-	MaxConcurrentRequests          int              `yaml:"max_concurrent_requests"`
-	VerifyDaemonConsistencyOnStart bool             `yaml:"verify_daemon_consistency_on_start"`
-	Capabilities                   []yamlCapability `yaml:"capabilities"`
+	ProtocolVersion          int              `yaml:"protocol_version"`
+	WorkerEthAddress         string           `yaml:"worker_eth_address,omitempty"`
+	AuthToken                string           `yaml:"auth_token,omitempty"`
+	PaymentDaemon            rawYAMLNode      `yaml:"payment_daemon"`
+	Worker                   yamlWorker       `yaml:"worker"`
+	Capabilities             []yamlCapability `yaml:"capabilities"`
+	ServiceRegistryPublisher rawYAMLNode      `yaml:"service_registry_publisher,omitempty"`
+}
 
-	// Optional sections accepted but not consumed by the current worker.
-	// Listed explicitly so KnownFields(true) doesn't reject a
-	// worker-owned file that includes future worker-side sections.
-	ServiceRegistryPublisher *yaml.Node `yaml:"service_registry_publisher,omitempty"`
+type yamlWorker struct {
+	HTTPListen                     string `yaml:"http_listen"`
+	PaymentDaemonSocket            string `yaml:"payment_daemon_socket"`
+	MaxConcurrentRequests          int    `yaml:"max_concurrent_requests"`
+	VerifyDaemonConsistencyOnStart bool   `yaml:"verify_daemon_consistency_on_start"`
 }
 
 type yamlCapability struct {
 	Capability string         `yaml:"capability"`
 	WorkUnit   string         `yaml:"work_unit"`
+	Extra      yamlObject     `yaml:"extra,omitempty"`
 	Offerings  []yamlOffering `yaml:"offerings"`
 
 	// Streaming-only knobs. Optional; not used by the current worker
@@ -46,12 +50,42 @@ type yamlCapability struct {
 }
 
 type yamlOffering struct {
-	Model               string `yaml:"id"`
-	PricePerWorkUnitWei string `yaml:"price_per_work_unit_wei"`
-	BackendURL          string `yaml:"backend_url"`
+	ID                  string     `yaml:"id"`
+	PricePerWorkUnitWei string     `yaml:"price_per_work_unit_wei"`
+	BackendURL          string     `yaml:"backend_url"`
+	Constraints         yamlObject `yaml:"constraints,omitempty"`
+}
+
+type rawYAMLNode struct {
+	Present bool
+	Node    *yaml.Node
+}
+
+func (r *rawYAMLNode) UnmarshalYAML(value *yaml.Node) error {
+	r.Present = true
+	clone := *value
+	r.Node = &clone
+	return nil
+}
+
+type yamlObject struct {
+	Present bool
+	Value   map[string]any
+}
+
+func (o *yamlObject) UnmarshalYAML(value *yaml.Node) error {
+	o.Present = true
+	if value.Kind != yaml.MappingNode {
+		if value.Kind == yaml.ScalarNode && value.Tag == "!!null" {
+			return errors.New("must be a JSON object when present (got null)")
+		}
+		return errors.New("must be a JSON object when present")
+	}
+	return value.Decode(&o.Value)
 }
 
 var capabilityRE = regexp.MustCompile(`^[a-z][a-z0-9]*:.+$`)
+var lowerEthAddressRE = regexp.MustCompile(`^0x[0-9a-f]{40}$`)
 
 // knownWorkUnits is the closed set of accepted work_unit identifiers
 // for CurrentProtocolVersion. Adding a unit requires a worker contract
@@ -96,13 +130,25 @@ func validate(cfg *yamlConfig) error {
 	if cfg == nil {
 		return errors.New("config.validate: nil config")
 	}
-	if err := validateWorker(cfg); err != nil {
+	if cfg.ServiceRegistryPublisher.Present {
+		return errors.New("worker.yaml: 'service_registry_publisher' block is not supported in v3.0.1 (archetype A: workers do not self-publish; remove the block)")
+	}
+	if cfg.ProtocolVersion != CurrentProtocolVersion {
+		return fmt.Errorf("worker.yaml: protocol_version=%d is not supported by this worker build (CurrentProtocolVersion=%d); upgrade or downgrade one side", cfg.ProtocolVersion, CurrentProtocolVersion)
+	}
+	if !cfg.PaymentDaemon.Present {
+		return errors.New("worker.yaml: missing 'payment_daemon' section (required for the receiver-mode daemon co-located with this worker)")
+	}
+	if cfg.WorkerEthAddress != "" && !lowerEthAddressRE.MatchString(strings.TrimSpace(cfg.WorkerEthAddress)) {
+		return fmt.Errorf("worker_eth_address: must be a lowercased 0x-prefixed 40-hex address (got %q)", cfg.WorkerEthAddress)
+	}
+	if err := validateWorker(&cfg.Worker); err != nil {
 		return err
 	}
 	return validateCapabilities(cfg.Capabilities)
 }
 
-func validateWorker(w *yamlConfig) error {
+func validateWorker(w *yamlWorker) error {
 	if w.HTTPListen == "" {
 		return errors.New("worker.http_listen: required")
 	}
@@ -143,22 +189,25 @@ func validateCapability(i int, c *yamlCapability) error {
 	if len(c.Offerings) == 0 {
 		return fmt.Errorf("%s.offerings: at least one offering required", prefix)
 	}
+	if err := validateJSONObject(prefix+".extra", c.Extra); err != nil {
+		return err
+	}
 	seen := make(map[string]struct{}, len(c.Offerings))
 	for j, m := range c.Offerings {
 		if err := validateOffering(prefix, j, &m); err != nil {
 			return err
 		}
-		if _, dup := seen[m.Model]; dup {
-			return fmt.Errorf("%s.offerings[%d].id: duplicate %q within capability", prefix, j, m.Model)
+		if _, dup := seen[m.ID]; dup {
+			return fmt.Errorf("%s.offerings[%d].id: duplicate %q within capability", prefix, j, m.ID)
 		}
-		seen[m.Model] = struct{}{}
+		seen[m.ID] = struct{}{}
 	}
 	return nil
 }
 
 func validateOffering(capPrefix string, j int, m *yamlOffering) error {
 	prefix := fmt.Sprintf("%s.offerings[%d]", capPrefix, j)
-	if m.Model == "" {
+	if m.ID == "" {
 		return fmt.Errorf("%s.id: required", prefix)
 	}
 	if m.PricePerWorkUnitWei == "" {
@@ -177,6 +226,9 @@ func validateOffering(capPrefix string, j int, m *yamlOffering) error {
 	if _, err := url.Parse(m.BackendURL); err != nil {
 		return fmt.Errorf("%s.backend_url: %w", prefix, err)
 	}
+	if err := validateJSONObject(prefix+".constraints", m.Constraints); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -186,23 +238,28 @@ func projectFromYAML(y *yamlConfig) *Config {
 		entry := CapabilityEntry{
 			Capability: types.CapabilityID(c.Capability),
 			WorkUnit:   types.WorkUnit(c.WorkUnit),
+			Extra:      copyJSONObject(c.Extra.Value),
 			Offerings:  make([]OfferingEntry, 0, len(c.Offerings)),
 		}
 		for _, m := range c.Offerings {
 			entry.Offerings = append(entry.Offerings, OfferingEntry{
-				Model:               types.ModelID(m.Model),
+				Model:               types.ModelID(m.ID),
 				PricePerWorkUnitWei: m.PricePerWorkUnitWei,
 				BackendURL:          m.BackendURL,
+				Constraints:         copyJSONObject(m.Constraints.Value),
 			})
 		}
 		ordered = append(ordered, entry)
 	}
-	return New(WorkerSection{
-		HTTPListen:                     y.HTTPListen,
-		PaymentDaemonSocket:            y.PaymentDaemonSocket,
-		MaxConcurrentRequests:          y.MaxConcurrentRequests,
-		VerifyDaemonConsistencyOnStart: y.VerifyDaemonConsistencyOnStart,
+	cfg := New(WorkerSection{
+		HTTPListen:                     y.Worker.HTTPListen,
+		PaymentDaemonSocket:            y.Worker.PaymentDaemonSocket,
+		MaxConcurrentRequests:          y.Worker.MaxConcurrentRequests,
+		VerifyDaemonConsistencyOnStart: y.Worker.VerifyDaemonConsistencyOnStart,
 	}, ordered)
+	cfg.WorkerEthAddress = strings.TrimSpace(y.WorkerEthAddress)
+	cfg.AuthToken = strings.TrimSpace(y.AuthToken)
+	return cfg
 }
 
 func sortedKeys(m map[string]struct{}) []string {
@@ -211,5 +268,26 @@ func sortedKeys(m map[string]struct{}) []string {
 		out = append(out, k)
 	}
 	sort.Strings(out)
+	return out
+}
+
+func validateJSONObject(path string, o yamlObject) error {
+	if !o.Present {
+		return nil
+	}
+	if o.Value == nil {
+		return fmt.Errorf("%s: must be a JSON object when present", path)
+	}
+	return nil
+}
+
+func copyJSONObject(in map[string]any) map[string]any {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
 	return out
 }

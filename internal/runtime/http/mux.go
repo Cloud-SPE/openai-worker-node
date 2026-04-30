@@ -15,7 +15,7 @@ import (
 // Mux is the worker's routing surface. Two entry points:
 //
 //   - Register(method, path, handler)     → unpaid; for /health,
-//     /capabilities, /quote, /quotes.
+//     /registry/offerings.
 //   - RegisterPaidRoute(module)           → wraps module in the
 //     payment middleware and binds at (module.HTTPMethod,
 //     module.HTTPPath).

@@ -8,7 +8,7 @@ last-reviewed: 2026-04-25
 
 What `openai-worker-node` exposes on `/metrics` and why each metric exists. Every metric pairs to a question an operator will dashboard or alert on. No vanity metrics.
 
-**Cross-repo conventions**: [`../../../livepeer-modules-conventions/metrics-conventions.md`](../../../livepeer-modules-conventions/metrics-conventions.md). This doc covers worker-specific instantiation; the conventions doc covers cross-repo rules (naming, label keys, bucket presets, cardinality cap, dual-histogram, audit-log philosophy, provider boundary).
+**Cross-repo conventions**: `livepeer-modules/docs/conventions/metrics-conventions.md`. This doc covers worker-specific instantiation; the conventions doc covers cross-repo rules (naming, label keys, bucket presets, cardinality cap, dual-histogram, audit-log philosophy, provider boundary).
 
 The pattern mirrors [Cloud-SPE/livepeer-modules `service-registry-daemon` observability](https://github.com/Cloud-SPE/livepeer-modules/blob/main/service-registry-daemon/docs/design-docs/observability.md) (status `verified`) — same package layout, same flag names, same `livepeer_<repo>_*` prefix.
 
@@ -16,7 +16,7 @@ Phases:
 
 - **Phase 1** (this doc, in-scope to build): Recorder provider + TCP `/metrics` listener + ~10 metrics covering request lifecycle, payment validation, capacity, backend health, and the daemon RPC critical path.
 - **Phase 2**: streaming TTFT, reconcile-delta histograms, payment-rejection breakdowns, per-capability stream-abort accounting, optional audit-log surface for per-request drilldown.
-- **Phase 3**: no new Prometheus metrics. Work-units served + daemon counters are the only signals the bridge needs from the worker — per-worker margin lives in [`openai-livepeer-bridge`'s `operator-economics-metrics-tooling`](../../../openai-livepeer-bridge/docs/exec-plans/tech-debt-tracker.md#operator-economics-metrics-tooling) rollups.
+- **Phase 3**: no new Prometheus metrics. Work-units served + daemon counters are the only signals the gateway needs from the worker — per-worker margin lives in gateway-side rollups.
 
 ## Conventions (worker-specific)
 
@@ -26,7 +26,7 @@ Worker-specific:
 
 - **Allowed labels (this repo)**: `capability`, `model`, `unit`, `outcome`, `reason`, `error_class`, `method`. `(capability, model)` cardinality is bounded by `worker.yaml`.
 - **No per-customer drilldown surface in v1.** The worker doesn't see customers (the only payer-side identifier it has is `sender` address, which is forbidden). If per-request drilldown becomes a real need, it lands as an audit-log table in Phase 2 mirroring service-registry's pattern.
-- **Endpoint**: `--metrics-listen=:9093` (port `:9093` per [`port-allocation.md`](../../../livepeer-modules-conventions/port-allocation.md)). Off by default. `WORKER_METRICS_PORT` in `.env.example` is the docker-compose convenience for the worker listener; `PAYMENT_METRICS_PORT` controls the daemon side.
+- **Endpoint**: `--metrics-listen=:9093` (port `:9093`). Off by default. `WORKER_METRICS_PORT` in `.env.example` is the docker-compose convenience for the worker listener; `PAYMENT_METRICS_PORT` controls the daemon side.
 
 ## Phase 1 catalog
 
@@ -149,5 +149,5 @@ Each provider package adds a `WithMetrics(inner, recorder, ...) <Interface>` con
 
 ## Cross-repo notes
 
-- The `unit` label values are stable across the worker and the bridge — `livepeer_bridge_revenue_usd_cents_total` joined with `livepeer_worker_work_units_total` over the same `(capability, model, time-window)` is the margin reconciliation. See [`../../../openai-livepeer-bridge/docs/design-docs/metrics.md`](../../../openai-livepeer-bridge/docs/design-docs/metrics.md).
+- The `unit` label values are stable across the worker and the gateway so worker work-units can still be joined against gateway-side revenue for margin reconciliation.
 - `worker.yaml` is the source of truth for the `(capability, model)` pairs that appear as labels. Adding a new model = new label values; bounded and expected.

@@ -1,6 +1,12 @@
 # AGENTS.md — openai-worker-node
 
-This repository hosts `openai-worker-node`: the HTTP adapter that sits between `openai-livepeer-bridge` and local inference backends (vLLM, diffusers, whisper, TTS, …). It validates payments via a sidecar `livepeer-payment-daemon` in `receiver` mode (consumed as a published container image, not a source dependency), then forwards OpenAI-compatible requests to the configured backend for each (capability, model) pair.
+This repository hosts `openai-worker-node`: the HTTP adapter that sits
+between `livepeer-openai-gateway` and local inference backends (vLLM,
+diffusers, whisper, TTS, …). It validates payments via a sidecar
+`livepeer-payment-daemon` in `receiver` mode (consumed as a published
+container image, not a source dependency), then forwards
+OpenAI-compatible requests to the configured backend for each
+`(capability, offering)` pair.
 
 **Humans steer. Agents execute. Scaffolding is the artifact.**
 
@@ -54,7 +60,11 @@ Lints enforce this in CI. See [docs/design-docs/architecture.md](docs/design-doc
 
 1. **Payment is auth.** Every paid HTTP route MUST pass through the payment middleware before reaching a backend. The middleware calls `PayeeDaemon.ProcessPayment` + `DebitBalance`; skipping either is a security bug, not a style issue. Enforced by a custom lint on the capability-module registration surface.
 2. **Fail-closed on config.** `worker.yaml` parse errors, daemon/worker capability mismatch, or missing backend URLs cause refuse-to-start. No partial-start fallbacks.
-3. **Split config ownership.** The worker owns `worker.yaml` in `internal/config/`; `livepeer-payment-daemon` owns its separate `payment-daemon.yaml`. Drift between the two capability catalogs is caught at startup via `VerifyDaemonCatalog`, not by the compiler.
+3. **Shared config, split validation.** The worker and
+   `livepeer-payment-daemon` both parse the same `worker.yaml`. The
+   worker validates its own fields and captures `payment_daemon`
+   opaquely; drift in the shared capability catalog is caught at
+   startup via `VerifyDaemonCatalog`, not by the compiler.
 4. **Providers boundary.** No cross-cutting dependency is imported outside `internal/providers/`.
 5. **No code without a plan.** Non-trivial work starts with an entry in `docs/exec-plans/active/`.
 6. **Test coverage ≥ 75% per package.** CI fails below this threshold. See `core-beliefs.md`.

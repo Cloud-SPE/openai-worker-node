@@ -2,7 +2,11 @@
 
 ## What we're building
 
-Infrastructure. The payee-side HTTP adapter that turns a host running inference servers plus a `livepeer-payment-daemon` into a sellable "worker" on the Livepeer BYOC network. Not a product for end users; a product for operators who already run inference hardware and want to monetize it through the bridge.
+Infrastructure. The payee-side HTTP adapter that turns a host running
+inference servers plus a `livepeer-payment-daemon` into a sellable
+"worker" in the Livepeer Network Suite. Not a product for end users; a
+product for operators who already run inference hardware and want to
+monetize it through the gateway/orch marketplace.
 
 ## Who uses this
 
@@ -20,11 +24,11 @@ Someone with GPU capacity who runs inference backends (vLLM, diffusers, whisper,
 
 ### The bridge operator
 
-Someone running `openai-livepeer-bridge` who lists this worker in their `nodes.yaml`. They care about:
+Someone running `livepeer-openai-gateway` who routes paid requests to
+this worker via the suite's resolver/manifest flow. They care about:
 
-- A predictable HTTP contract (`/health`, `/capabilities`, `/quote`, paid routes).
-- A truthful `/capabilities` response — what the worker advertises is what the worker can deliver.
-- Fast quote refresh (batched `/quotes` endpoint).
+- A predictable HTTP contract (`/health`, `/registry/offerings`, paid routes).
+- A truthful `/registry/offerings` response — what the worker advertises is what the worker can deliver.
 - Clean error modes: payment-required, capacity-exceeded, model-not-loaded are distinguishable.
 
 ### The consumer-app developer (indirect)

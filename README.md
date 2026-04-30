@@ -1,23 +1,25 @@
 # openai-worker-node
 
-The payee-side HTTP adapter for Livepeer BYOC payment. Sits in front of local OpenAI-compatible inference backends (vLLM, diffusers, whisper, TTS, …), validates payment via a co-located `livepeer-payment-daemon` running over a unix socket, and serves paid requests from `openai-livepeer-bridge`.
+The payee-side OpenAI worker adapter for the Livepeer Network Suite.
+Sits in front of local OpenAI-compatible inference backends (vLLM,
+diffusers, whisper, TTS, …), validates payment via a co-located
+`livepeer-payment-daemon` over a unix socket, and serves paid requests
+from `livepeer-openai-gateway`.
 
 ## Architecture at a glance
 
 ```
-bridge ── HTTPS ─▶ openai-worker-node ── gRPC ─▶ livepeer-payment-daemon
+gateway ── HTTPS ─▶ openai-worker-node ── gRPC ─▶ livepeer-payment-daemon
                            │
                            └── HTTP ─▶ inference backends (vLLM / diffusers / whisper / …)
 ```
 
-One worker node = two config files:
-
-- `worker.yaml` for `openai-worker-node`
-- `payment-daemon.yaml` for `livepeer-payment-daemon`
-
-Each `(capability, model)` pair routes to its own backend URL on the
-worker side. The daemon carries the same catalog without `backend_url`;
-startup fails closed if the two catalogs drift.
+One worker node = one shared `worker.yaml` consumed by both
+`openai-worker-node` and `livepeer-payment-daemon` (receiver mode).
+Each `(capability, offering)` pair routes to its own backend URL on the
+worker side; the daemon reads the same catalog and ignores
+`backend_url`. Startup fails closed if the shared catalog drifts from
+what the daemon advertises over `ListCapabilities`.
 
 Capabilities (v1):
 
@@ -41,7 +43,11 @@ Video generation, FFMPEG live transcoding, and custom workloads are backlog.
 
 ## Contracts shared with the payment daemon
 
-- **YAML schema:** the worker parses `worker.yaml` in [`internal/config/`](internal/config/). The daemon parses a separate `payment-daemon.yaml`. Drift between the two capability catalogs is detected at runtime via the daemon-catalog cross-check.
+- **YAML schema:** both processes parse the same `worker.yaml`. The
+  worker validates worker-facing fields and captures `payment_daemon`
+  opaquely; the daemon validates its own section independently. Drift
+  between the shared capability catalog and the daemon RPC surface is
+  detected at runtime via the daemon-catalog cross-check.
 - **gRPC API:** the `.proto` definitions in [`internal/proto/livepeer/payments/v1/`](internal/proto/livepeer/payments/v1/) are wire-compatible with the daemon's. Regenerate Go stubs with `make proto`.
 
 ## License

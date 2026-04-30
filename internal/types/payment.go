@@ -1,8 +1,8 @@
 package types
 
-// PaymentHeaderName is the HTTP header the bridge sends the
+// PaymentHeaderName is the HTTP header the gateway sends the
 // base64-encoded `livepeer.payments.v1.Payment` bytes in. Mirrors the
-// bridge's outgoing convention in openai-livepeer-bridge (see
+// gateway's outgoing convention in livepeer-openai-gateway (see
 // src/providers/nodeClient/fetch.ts).
 const PaymentHeaderName = "livepeer-payment"
 

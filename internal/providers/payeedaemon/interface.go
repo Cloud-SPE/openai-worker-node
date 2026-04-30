@@ -8,10 +8,12 @@ import (
 )
 
 // Client is the small surface the worker-node needs from the
-// livepeer-payment-daemon. Four methods cover the full lifecycle:
+// livepeer-payment-daemon.
 //
 //   - ListCapabilities at startup for the worker/daemon catalog
 //     cross-check.
+//   - GetQuote is retained for compatibility with the daemon surface
+//     even though the v3.0.1 worker no longer exposes quote endpoints.
 //   - ProcessPayment + DebitBalance on every paid request.
 //   - Close on shutdown.
 //
@@ -25,10 +27,9 @@ type Client interface {
 	ListCapabilities(ctx context.Context) (ListCapabilitiesResult, error)
 
 	// GetQuote returns the daemon's TicketParams + per-model prices
-	// for a (sender, capability) pair. The worker's /quote and
-	// /quotes HTTP handlers proxy this call through to the bridge so
-	// the bridge can refresh its quote cache. NotFound is expected
-	// when the operator hasn't configured `capability`.
+	// for a (sender, capability) pair. The v3.0.1 worker no longer
+	// exposes quote HTTP endpoints, but the provider surface keeps this
+	// method so it remains wire-compatible with the daemon contract.
 	GetQuote(ctx context.Context, sender []byte, capability string) (GetQuoteResult, error)
 
 	// ProcessPayment validates a payment blob and credits the sender's

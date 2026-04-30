@@ -2,8 +2,7 @@
 
 The `compose.yaml` at the repo root stands up `openai-worker-node`
 alongside `livepeer-payment-daemon` (receiver mode), with one
-worker-owned `worker.yaml`, one daemon-owned `payment-daemon.yaml`,
-and one shared unix socket.
+shared `worker.yaml` and one shared unix socket.
 
 ## Prerequisites
 
@@ -17,13 +16,12 @@ The dev `compose.yaml` pulls the `payment-daemon` sidecar as a published image (
 
    ```bash
    cp worker.example.yaml worker.yaml
-   cp payment-daemon.example.yaml payment-daemon.yaml
    ```
 
-2. Edit `payment-daemon.yaml` for fake-broker dev mode:
-   - Set `broker.mode: fake`.
-   - Drop `broker.rpc_url` and `broker.ticket_broker_contract`.
-   - Add `broker.fake_sender_balances_wei` with the
+2. Edit `worker.yaml` for fake-broker dev mode:
+   - Under `payment_daemon.broker`, set `mode: fake`.
+   - Drop `rpc_url` and `ticket_broker_contract`.
+   - Add `fake_sender_balances_wei` with the
      bridge's ETH address and a generous balance, e.g.:
 
      ```yaml
@@ -31,19 +29,13 @@ The dev `compose.yaml` pulls the `payment-daemon` sidecar as a published image (
        "0xBRIDGE_ADDR_HERE": "1000000000000000000"
      ```
 
-   - Replace `recipient_eth_address` with a real-looking address
+   - Replace `payment_daemon.recipient_eth_address` with a real-looking address
      (the format check requires 0x + 40 hex chars, but the value
      doesn't need to be a real wallet in fake mode).
-   - Keep `capabilities[].models[]` byte-identical with the worker's
-     `capabilities[].offerings[]` prices and ids.
-
-3. Edit `worker.yaml`:
    - Set each `capabilities[].offerings[].backend_url` to a reachable
      inference backend.
-   - Keep each capability id, work unit, and price byte-identical with
-     `payment-daemon.yaml`.
 
-4. Bring the stack up:
+3. Bring the stack up:
 
    ```bash
    docker compose up --build
@@ -52,40 +44,41 @@ The dev `compose.yaml` pulls the `payment-daemon` sidecar as a published image (
    The first build takes 1–2 minutes (module download + two Go
    builds). Subsequent builds are fast thanks to layer caching.
 
-5. Verify:
+4. Verify:
 
    ```bash
    curl -s http://localhost:8080/health | jq
-   # {"status":"ok","protocol_version":3,"max_concurrent":16}
+   # {"status":"ok","api_version":1,"protocol_version":1,"max_concurrent":16}
 
-   curl -s http://localhost:8080/capabilities | jq
-   # {"protocol_version":3,"capabilities":[...]}
+   curl -s http://localhost:8080/registry/offerings | jq
+   # {"capabilities":[...]}
    ```
 
 ## Production mode (real broker)
 
-1. Keep `broker.mode: ethereum` in `payment-daemon.yaml`.
-2. Point `rpc_url` at your JSON-RPC endpoint and set
+1. Keep `payment_daemon.broker.mode: ethereum` in `worker.yaml`.
+2. Point `payment_daemon.broker.rpc_url` at your JSON-RPC endpoint and set
    `ticket_broker_contract` to the `TicketBroker` contract address for
    the chain you're deploying to.
 3. Mount a real V3 JSON keystore into the `payment-daemon` container
-   and set `keystore.path` + `keystore.passphrase_env` to match.
+   and set `payment_daemon.keystore.path` +
+   `payment_daemon.keystore.passphrase_env` to match.
 4. Make sure every `capabilities[].offerings[].backend_url` in
    `worker.yaml` points at an actual inference server the worker can
    reach.
-5. Keep worker and daemon capability catalogs byte-identical apart from
-   `backend_url`.
+5. Keep the shared capability catalog byte-identical between what the
+   worker parses locally and what the daemon returns via
+   `ListCapabilities`.
 
-## How the split config works
+## How the shared config works
 
-The worker's `worker.yaml` is bind-mounted only into the worker
-container at `/etc/livepeer/worker.yaml`. The daemon's
-`payment-daemon.yaml` is bind-mounted only into the daemon container at
-`/etc/livepeer/payment-daemon.yaml`.
+The same `worker.yaml` is bind-mounted into both containers at
+`/etc/livepeer/worker.yaml`.
 
 The worker's startup cross-checks further by calling
 `PayeeDaemon.ListCapabilities` over the unix socket and asserting
-byte-equality with its own parse for every `(capability, model, price)`
+byte-equality with its own parse for every
+`(capability, offering, price)`
 triple. Flipping `verify_daemon_consistency_on_start: false` disables
 this check — only do so in dev where you know you're out of lockstep.
 
@@ -107,7 +100,7 @@ Two flags control the listener:
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--metrics-listen` | `""` (off) | `host:port`. Empty = no listener. Worker port allocation is `:9093` per [`livepeer-modules-conventions/port-allocation.md`](../../../livepeer-modules-conventions/port-allocation.md). |
+| `--metrics-listen` | `""` (off) | `host:port`. Empty = no listener. Worker port allocation is `:9093`. |
 | `--metrics-max-series-per-metric` | `10000` | Hard cap on distinct label tuples per metric. `0` disables the cap. New tuples beyond the cap are dropped (a `WARN` is logged once per metric). |
 
 When enabled, the listener serves:
@@ -153,7 +146,8 @@ sensitive.
 ## Upgrading
 
 To pick up a new daemon or worker release, bump `PAYMENT_IMAGE_TAG` and
-`WORKER_IMAGE_TAG` in `.env` (or rely on the default `v3.0.0` pins in
+`WORKER_IMAGE_TAG` in `.env` (or rely on the default `v3.0.0`/`v3.0.1`
+style pins in
 compose) and run:
 
 ```

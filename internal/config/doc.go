@@ -1,7 +1,8 @@
-// Package config parses, validates, and projects worker.yaml into the
-// worker-specific form. In v3 the worker owns this config file
-// outright; the payment daemon parses a separate payment-daemon.yaml.
-// Validation covers worker settings and the capability catalog.
+// Package config parses, validates, and projects the shared
+// worker.yaml into the worker-specific runtime form. In v3.0.1 the
+// worker and receiver-mode payment daemon both consume this file; the
+// worker validates the worker-facing fields, captures payment_daemon
+// opaquely, and projects the capability catalog.
 //
 // The package also owns the daemon-consistency cross-check: once the
 // worker dials the payee daemon and pulls ListCapabilities, call

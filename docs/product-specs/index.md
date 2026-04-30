@@ -1,15 +1,16 @@
 # Product-specs index
 
-The HTTP contract this worker exposes to `openai-livepeer-bridge`, and the gRPC contract it consumes from `livepeer-payment-daemon`. These are the service boundaries external consumers rely on.
+The HTTP contract this worker exposes to `livepeer-openai-gateway` and
+the orch-coordinator, and the gRPC contract it consumes from
+`livepeer-payment-daemon`. These are the service boundaries external
+consumers rely on.
 
 ## HTTP surface (this worker, for the bridge)
 
 | Method | Path                          | Paid? | Status | Spec                                                  |
 | ------ | ----------------------------- | ----- | ------ | ----------------------------------------------------- |
 | `GET`  | `/health`                     | no    | live   | inline below                                          |
-| `GET`  | `/capabilities`               | no    | live   | inline below                                          |
-| `GET`  | `/quote?sender=&capability=`  | no    | live   | inline below                                          |
-| `GET`  | `/quotes?sender=`             | no    | live   | inline below                                          |
+| `GET`  | `/registry/offerings`         | no    | live   | inline below                                          |
 | `POST` | `/v1/chat/completions`        | yes   | live   | [chat_completions.md](chat_completions.md)            |
 | `POST` | `/v1/embeddings`              | yes   | live   | [embeddings.md](embeddings.md)                        |
 | `POST` | `/v1/images/generations`      | yes   | live   | [images.md](images.md)                                |
@@ -27,17 +28,10 @@ Methods used:
 
 | RPC                  | When called                                                                                                              |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `ListCapabilities`   | Once at startup (catalog cross-check) and once per request to `GET /quotes` (to enumerate capabilities for the response). |
-| `GetQuote`           | Once per `GET /quote` request, and once per advertised capability when serving `GET /quotes`.                            |
+| `ListCapabilities`   | Once at startup for the worker/daemon catalog cross-check.                                                 |
+| `GetQuote`           | Not used by the v3.0.1 worker HTTP surface. Retained only in the provider layer for daemon compatibility. |
 | `ProcessPayment`     | Every paid request.                                                                                                      |
 | `DebitBalance`       | Every paid request (up-front + reconcile).                                                                               |
-
-Proxy mapping for the unpaid HTTP surface:
-
-| HTTP route   | Proxies to                                                                       |
-| ------------ | -------------------------------------------------------------------------------- |
-| `GET /quote` | `PayeeDaemon.GetQuote`                                                           |
-| `GET /quotes`| `PayeeDaemon.ListCapabilities` → one `PayeeDaemon.GetQuote` per advertised capability |
 
 ## Error contract
 
@@ -53,6 +47,8 @@ Proxy mapping for the unpaid HTTP surface:
 
 ## Conventions
 
-- All specs under this directory are versioned; breaking changes bump the `protocol_version` advertised by `/health` and `/capabilities`.
+- All specs under this directory are versioned; breaking changes bump
+  the worker HTTP `api_version` and/or shared YAML `protocol_version`
+  advertised on `/health`.
 - Request/response shapes are documented with JSON Schema or a minimal example; Go types in `internal/types/` are the canonical source of truth.
 - Specs may reference design-docs for "why" decisions; they do not reference exec-plans.
