@@ -65,7 +65,7 @@ type OfferingPrice struct {
 // flat bytes-and-numbers so the HTTP handler can render it into the
 // JSON shape the bridge expects without touching proto types.
 type GetQuoteResult struct {
-	TicketParams TicketParams
+	TicketParams   TicketParams
 	OfferingPrices []OfferingPrice
 }
 
