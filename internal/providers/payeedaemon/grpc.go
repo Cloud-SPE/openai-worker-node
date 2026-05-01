@@ -118,6 +118,35 @@ func (c *grpcClient) GetQuote(ctx context.Context, sender []byte, capability str
 	return out, nil
 }
 
+func (c *grpcClient) GetTicketParams(ctx context.Context, req GetTicketParamsRequest) (TicketParams, error) {
+	resp, err := c.client.GetTicketParams(ctx, &paymentsv1.GetTicketParamsRequest{
+		Sender:     append([]byte(nil), req.Sender...),
+		Recipient:  append([]byte(nil), req.Recipient...),
+		FaceValue:  req.FaceValue.Bytes(),
+		Capability: req.Capability,
+		Offering:   req.Offering,
+	})
+	if err != nil {
+		return TicketParams{}, fmt.Errorf("payeedaemon: GetTicketParams: %w", err)
+	}
+	tp := resp.GetTicketParams()
+	if tp == nil {
+		return TicketParams{}, fmt.Errorf("payeedaemon: GetTicketParams: daemon returned nil ticket_params")
+	}
+	return TicketParams{
+		Recipient:         tp.GetRecipient(),
+		FaceValueWei:      tp.GetFaceValue(),
+		WinProb:           tp.GetWinProb(),
+		RecipientRandHash: tp.GetRecipientRandHash(),
+		Seed:              tp.GetSeed(),
+		ExpirationBlock:   tp.GetExpirationBlock(),
+		ExpirationParams: TicketExpirationParams{
+			CreationRound:          tp.GetExpirationParams().GetCreationRound(),
+			CreationRoundBlockHash: tp.GetExpirationParams().GetCreationRoundBlockHash(),
+		},
+	}, nil
+}
+
 func (c *grpcClient) DebitBalance(ctx context.Context, sender []byte, workID string, workUnits int64) (DebitBalanceResult, error) {
 	resp, err := c.client.DebitBalance(ctx, &paymentsv1.DebitBalanceRequest{
 		Sender:    sender,

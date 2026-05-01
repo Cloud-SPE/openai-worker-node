@@ -96,7 +96,7 @@ Expected HTTP behavior:
 - `5xx` when the receiver daemon cannot issue valid params
 
 Upstream dependency: `livepeer-modules-project/payment-daemon` must first expose the new receiver-mode RPC and own the canonical request/response schema. This repo should implement only the thin HTTP-to-daemon proxy once that contract lands.
-**Resolution target:** Unclaimed — wait for the modules/payment-daemon RPC contract, then open a dedicated exec plan for route wiring, validation, provider method expansion, tests, and docs.
+**Resolved:** Implemented in worker plan `0015-payment-ticket-params-proxy`. The worker now exposes `POST /v1/payment/ticket-params`, reuses `auth_token`, validates the JSON request, proxies to `PayeeDaemon.GetTicketParams`, and returns the daemon-issued canonical `ticket_params` object. Custom lint updated to allow this one unpaid `/v1/*` helper route.
 
 ## Resolved
 

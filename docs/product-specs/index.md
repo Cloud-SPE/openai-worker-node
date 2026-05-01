@@ -11,6 +11,7 @@ consumers rely on.
 | ------ | ----------------------------- | ----- | ------ | ----------------------------------------------------- |
 | `GET`  | `/health`                     | no    | live   | inline below                                          |
 | `GET`  | `/registry/offerings`         | no    | live   | inline below                                          |
+| `POST` | `/v1/payment/ticket-params`   | no*   | live   | inline below                                          |
 | `POST` | `/v1/chat/completions`        | yes   | live   | [chat_completions.md](chat_completions.md)            |
 | `POST` | `/v1/embeddings`              | yes   | live   | [embeddings.md](embeddings.md)                        |
 | `POST` | `/v1/images/generations`      | yes   | live   | [images.md](images.md)                                |
@@ -19,6 +20,41 @@ consumers rely on.
 | `POST` | `/v1/audio/transcriptions`    | yes   | live   | [audio_transcriptions.md](audio_transcriptions.md)    |
 
 Each paid route accepts the base64-encoded `livepeer.payments.v1.Payment` proto in the `livepeer-payment` header. The request body and response body are OpenAI-compatible for the route's canonical endpoint.
+
+`POST /v1/payment/ticket-params` is unpaid in the payment sense, but when `auth_token` is configured in `worker.yaml` it requires `Authorization: Bearer <token>` exactly like `/registry/offerings`. It is a thin proxy to the local receiver-mode payment daemon's `GetTicketParams` RPC and does no pricing or crypto locally.
+
+Minimal request / response shape:
+
+```json
+POST /v1/payment/ticket-params
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "sender_eth_address": "0x1111111111111111111111111111111111111111",
+  "recipient_eth_address": "0xd00354656922168815fcd1e51cbddb9e359e3c7f",
+  "face_value_wei": "1250000",
+  "capability": "openai:/v1/chat/completions",
+  "offering": "gpt-oss-20b"
+}
+```
+
+```json
+{
+  "ticket_params": {
+    "recipient": "0xd00354656922168815fcd1e51cbddb9e359e3c7f",
+    "face_value": "1250000",
+    "win_prob": "0x123456",
+    "recipient_rand_hash": "0xaabbcc",
+    "seed": "0xdeadbeef",
+    "expiration_block": "9876543",
+    "expiration_params": {
+      "creation_round": 4523,
+      "creation_round_block_hash": "0x01020304"
+    }
+  }
+}
+```
 
 ## gRPC surface (consumed, from the payment daemon)
 
@@ -30,6 +66,7 @@ Methods used:
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `ListCapabilities`   | Once at startup for the worker/daemon catalog cross-check.                                                 |
 | `GetQuote`           | Not used by the v3.0.1 worker HTTP surface. Retained only in the provider layer for daemon compatibility. |
+| `GetTicketParams`    | On `POST /v1/payment/ticket-params`; returns canonical payee-issued ticket params for sender-side ticket minting. |
 | `ProcessPayment`     | Every paid request.                                                                                                      |
 | `DebitBalance`       | Every paid request (up-front + reconcile).                                                                               |
 
@@ -43,6 +80,9 @@ Methods used:
 | Model not loaded / capability not advertised | 404 Not Found | `{ "error": "capability_not_found" }` |
 | Backend 5xx or connection error | 502 Bad Gateway | `{ "error": "backend_unavailable" }` |
 | Request body schema validation failed | 400 Bad Request | `{ "error": "invalid_request", "detail": "..." }` |
+| `/registry/offerings` or `/v1/payment/ticket-params` bearer missing / invalid when `auth_token` enabled | 401 Unauthorized | `{ "error": "unauthorized", "detail": "missing or invalid bearer token" }` |
+| `GetTicketParams` daemon unavailable | 503 Service Unavailable | `{ "error": "payment_daemon_unavailable", "detail": "<daemon message>" }` |
+| `GetTicketParams` daemon failed to issue params | 500 Internal Server Error | `{ "error": "ticket_params_unavailable", "detail": "<daemon message>" }` |
 | `max_concurrent_requests` exceeded | 503 Service Unavailable | `{ "error": "capacity_exhausted" }` |
 
 ## Conventions

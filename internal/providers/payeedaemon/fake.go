@@ -28,18 +28,22 @@ type Fake struct {
 	ListCapabilitiesError     error
 	GetQuoteResponse          GetQuoteResult
 	GetQuoteError             error
+	GetTicketParamsResponse   TicketParams
+	GetTicketParamsError      error
 	CreditPerCall             *big.Int
 	DebitWeiPerWorkUnit       *big.Int
 	SenderAddress             []byte
 	ProcessPaymentCalls       int
 	DebitBalanceCalls         int
 	GetQuoteCalls             int
+	GetTicketParamsCalls      int
 	LastProcessPaymentPayload []byte
 	LastDebitBalanceWorkUnits int64
 	LastProcessPaymentWorkID  string
 	LastDebitBalanceWorkID    string
 	LastGetQuoteSender        []byte
 	LastGetQuoteCapability    string
+	LastGetTicketParams       GetTicketParamsRequest
 
 	// balances tracks (sender, work_id) → running balance so the fake
 	// stays consistent across calls (e.g. insufficient-balance tests).
@@ -77,6 +81,36 @@ func (f *Fake) GetQuote(_ context.Context, sender []byte, capability string) (Ge
 		return GetQuoteResult{}, f.GetQuoteError
 	}
 	return f.GetQuoteResponse, nil
+}
+
+func (f *Fake) GetTicketParams(_ context.Context, req GetTicketParamsRequest) (TicketParams, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.GetTicketParamsCalls++
+	f.LastGetTicketParams = GetTicketParamsRequest{
+		Sender:     append([]byte(nil), req.Sender...),
+		Recipient:  append([]byte(nil), req.Recipient...),
+		Capability: req.Capability,
+		Offering:   req.Offering,
+	}
+	if req.FaceValue != nil {
+		f.LastGetTicketParams.FaceValue = new(big.Int).Set(req.FaceValue)
+	}
+	if f.GetTicketParamsError != nil {
+		return TicketParams{}, f.GetTicketParamsError
+	}
+	return TicketParams{
+		Recipient:         append([]byte(nil), f.GetTicketParamsResponse.Recipient...),
+		FaceValueWei:      append([]byte(nil), f.GetTicketParamsResponse.FaceValueWei...),
+		WinProb:           append([]byte(nil), f.GetTicketParamsResponse.WinProb...),
+		RecipientRandHash: append([]byte(nil), f.GetTicketParamsResponse.RecipientRandHash...),
+		Seed:              append([]byte(nil), f.GetTicketParamsResponse.Seed...),
+		ExpirationBlock:   append([]byte(nil), f.GetTicketParamsResponse.ExpirationBlock...),
+		ExpirationParams: TicketExpirationParams{
+			CreationRound:          f.GetTicketParamsResponse.ExpirationParams.CreationRound,
+			CreationRoundBlockHash: append([]byte(nil), f.GetTicketParamsResponse.ExpirationParams.CreationRoundBlockHash...),
+		},
+	}, nil
 }
 
 func (f *Fake) ProcessPayment(_ context.Context, paymentBytes []byte, workID string) (ProcessPaymentResult, error) {

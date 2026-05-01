@@ -21,6 +21,14 @@ worker side; the daemon reads the same catalog and ignores
 `backend_url`. Startup fails closed if the shared catalog drifts from
 what the daemon advertises over `ListCapabilities`.
 
+In addition to the paid OpenAI-compatible capability routes, the worker
+also exposes:
+
+- `GET /registry/offerings` for orch-coordinator scrape
+- `POST /v1/payment/ticket-params` as a thin authenticated proxy to the
+  local receiver-mode daemon's `GetTicketParams` RPC
+- `GET /health` for liveness and version reporting
+
 Capabilities (v1):
 
 - `openai:/v1/chat/completions`

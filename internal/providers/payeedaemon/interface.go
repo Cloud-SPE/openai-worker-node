@@ -32,6 +32,11 @@ type Client interface {
 	// method so it remains wire-compatible with the daemon contract.
 	GetQuote(ctx context.Context, sender []byte, capability string) (GetQuoteResult, error)
 
+	// GetTicketParams returns canonical payee-issued ticket params for
+	// an exact sender / recipient / face-value tuple. The worker uses
+	// this only as a thin HTTP proxy for the gateway-side payment flow.
+	GetTicketParams(ctx context.Context, req GetTicketParamsRequest) (TicketParams, error)
+
 	// ProcessPayment validates a payment blob and credits the sender's
 	// balance. The workID identifies the session the credit posts to;
 	// typically the worker derives it from the payment (e.g. the
@@ -88,6 +93,18 @@ func (m *meteredClient) GetQuote(ctx context.Context, sender []byte, capability 
 	}
 	m.rec.IncDaemonRPC(metrics.MethodGetQuote, outcome)
 	m.rec.ObserveDaemonRPC(metrics.MethodGetQuote, outcome, time.Since(start))
+	return res, err
+}
+
+func (m *meteredClient) GetTicketParams(ctx context.Context, req GetTicketParamsRequest) (TicketParams, error) {
+	start := time.Now()
+	res, err := m.inner.GetTicketParams(ctx, req)
+	outcome := metrics.OutcomeOK
+	if err != nil {
+		outcome = metrics.OutcomeError
+	}
+	m.rec.IncDaemonRPC(metrics.MethodGetTicketParams, outcome)
+	m.rec.ObserveDaemonRPC(metrics.MethodGetTicketParams, outcome, time.Since(start))
 	return res, err
 }
 

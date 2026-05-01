@@ -122,6 +122,7 @@ Defined in `docs/product-specs/`. Endpoints exposed:
 
 - `GET /health` — liveness + `api_version` + `protocol_version` + `max_concurrent` + `inflight`
 - `GET /registry/offerings` — canonical capability advertisement for orch-coordinator scrape; omits `backend_url`
+- `POST /v1/payment/ticket-params` — thin authenticated proxy to the local receiver-mode daemon's `GetTicketParams` RPC
 - `POST /v1/<capability-path>` — paid work, one per capability
 
 ## Explicit non-goals (v1)
@@ -140,7 +141,7 @@ Enumerated in full in `AGENTS.md`. The short list:
 
 1. Payment is auth — enforced by a lint that checks every paid route passes through the middleware.
 2. Fail-closed on config / daemon mismatch.
-3. Shared YAML schema comes from the library package, not from here.
+3. Shared YAML schema is copied and enforced locally in `internal/config/`, with the daemon cross-check catching catalog drift at startup.
 4. Providers boundary is a single hop.
 5. No code without a plan.
 6. Test coverage ≥ 75% per package.

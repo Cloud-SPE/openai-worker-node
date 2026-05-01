@@ -30,6 +30,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	PayeeDaemon_GetQuote_FullMethodName               = "/livepeer.payments.v1.PayeeDaemon/GetQuote"
+	PayeeDaemon_GetTicketParams_FullMethodName        = "/livepeer.payments.v1.PayeeDaemon/GetTicketParams"
 	PayeeDaemon_ListCapabilities_FullMethodName       = "/livepeer.payments.v1.PayeeDaemon/ListCapabilities"
 	PayeeDaemon_ProcessPayment_FullMethodName         = "/livepeer.payments.v1.PayeeDaemon/ProcessPayment"
 	PayeeDaemon_DebitBalance_FullMethodName           = "/livepeer.payments.v1.PayeeDaemon/DebitBalance"
@@ -50,6 +51,11 @@ type PayeeDaemonClient interface {
 	// covers every model on the capability; per-model prices are carried in
 	// `model_prices` and are what the payer checks against when billing.
 	GetQuote(ctx context.Context, in *GetQuoteRequest, opts ...grpc.CallOption) (*GetQuoteResponse, error)
+	// Return canonical payee-issued TicketParams for an exact sender /
+	// recipient / face-value tuple. Pricing is handled upstream by
+	// manifest/resolver; this RPC only returns the cryptographic ticket
+	// parameters the recipient controls.
+	GetTicketParams(ctx context.Context, in *GetTicketParamsRequest, opts ...grpc.CallOption) (*GetTicketParamsResponse, error)
 	// Return the daemon's full configured capability catalog. The worker-node
 	// calls this at startup to cross-check its own worker.yaml parse against
 	// the daemon's — mismatch is a fail-closed condition. Also drives the
@@ -89,6 +95,16 @@ func (c *payeeDaemonClient) GetQuote(ctx context.Context, in *GetQuoteRequest, o
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetQuoteResponse)
 	err := c.cc.Invoke(ctx, PayeeDaemon_GetQuote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *payeeDaemonClient) GetTicketParams(ctx context.Context, in *GetTicketParamsRequest, opts ...grpc.CallOption) (*GetTicketParamsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTicketParamsResponse)
+	err := c.cc.Invoke(ctx, PayeeDaemon_GetTicketParams_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +201,11 @@ type PayeeDaemonServer interface {
 	// covers every model on the capability; per-model prices are carried in
 	// `model_prices` and are what the payer checks against when billing.
 	GetQuote(context.Context, *GetQuoteRequest) (*GetQuoteResponse, error)
+	// Return canonical payee-issued TicketParams for an exact sender /
+	// recipient / face-value tuple. Pricing is handled upstream by
+	// manifest/resolver; this RPC only returns the cryptographic ticket
+	// parameters the recipient controls.
+	GetTicketParams(context.Context, *GetTicketParamsRequest) (*GetTicketParamsResponse, error)
 	// Return the daemon's full configured capability catalog. The worker-node
 	// calls this at startup to cross-check its own worker.yaml parse against
 	// the daemon's — mismatch is a fail-closed condition. Also drives the
@@ -221,6 +242,9 @@ type UnimplementedPayeeDaemonServer struct{}
 
 func (UnimplementedPayeeDaemonServer) GetQuote(context.Context, *GetQuoteRequest) (*GetQuoteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetQuote not implemented")
+}
+func (UnimplementedPayeeDaemonServer) GetTicketParams(context.Context, *GetTicketParamsRequest) (*GetTicketParamsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTicketParams not implemented")
 }
 func (UnimplementedPayeeDaemonServer) ListCapabilities(context.Context, *ListCapabilitiesRequest) (*ListCapabilitiesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListCapabilities not implemented")
@@ -280,6 +304,24 @@ func _PayeeDaemon_GetQuote_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PayeeDaemonServer).GetQuote(ctx, req.(*GetQuoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PayeeDaemon_GetTicketParams_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTicketParamsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PayeeDaemonServer).GetTicketParams(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PayeeDaemon_GetTicketParams_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PayeeDaemonServer).GetTicketParams(ctx, req.(*GetTicketParamsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -438,6 +480,10 @@ var PayeeDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetQuote",
 			Handler:    _PayeeDaemon_GetQuote_Handler,
+		},
+		{
+			MethodName: "GetTicketParams",
+			Handler:    _PayeeDaemon_GetTicketParams_Handler,
 		},
 		{
 			MethodName: "ListCapabilities",

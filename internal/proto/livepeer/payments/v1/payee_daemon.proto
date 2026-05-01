@@ -22,6 +22,12 @@ service PayeeDaemon {
   // `model_prices` and are what the payer checks against when billing.
   rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse);
 
+  // Return canonical payee-issued TicketParams for an exact sender /
+  // recipient / face-value tuple. Pricing is handled upstream by
+  // manifest/resolver; this RPC only returns the cryptographic ticket
+  // parameters the recipient controls.
+  rpc GetTicketParams(GetTicketParamsRequest) returns (GetTicketParamsResponse);
+
   // Return the daemon's full configured capability catalog. The worker-node
   // calls this at startup to cross-check its own worker.yaml parse against
   // the daemon's — mismatch is a fail-closed condition. Also drives the
@@ -77,6 +83,26 @@ message GetQuoteResponse {
   // on the bridge's quote-refresh cycle. Empty iff the daemon has no
   // models configured for this capability (caller should treat as NotFound).
   repeated ModelPrice model_prices = 2;
+}
+
+message GetTicketParamsRequest {
+  // ETH address of the sender that will sign the ticket.
+  bytes sender = 1;
+
+  // ETH address of the intended recipient. Must match the receiver daemon's
+  // configured recipient when provided.
+  bytes recipient = 2;
+
+  // Exact requested ticket face value in wei, big-endian bytes.
+  bytes face_value = 3;
+
+  // Optional capability / offering metadata for logging and future metrics.
+  string capability = 4;
+  string offering = 5;
+}
+
+message GetTicketParamsResponse {
+  TicketParams ticket_params = 1;
 }
 
 // ModelPrice pairs a model identifier with its wei-per-work-unit price.

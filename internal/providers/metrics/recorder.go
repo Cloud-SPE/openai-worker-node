@@ -39,7 +39,7 @@ type Recorder interface {
 	// ----- Daemon RPC (unix-socket gRPC; dual-histogram) -----
 
 	// IncDaemonRPC counts one completed payee-daemon RPC. method ∈
-	// {ProcessPayment, DebitBalance, GetQuote, ListCapabilities}.
+	// {ProcessPayment, DebitBalance, GetQuote, GetTicketParams, ListCapabilities}.
 	IncDaemonRPC(method, outcome string)
 	// ObserveDaemonRPC records the unary RPC latency. Two histograms
 	// fire: a coarse-grained one (default Prom buckets) and a sub-ms
@@ -124,6 +124,7 @@ const (
 	MethodProcessPayment   = "ProcessPayment"
 	MethodDebitBalance     = "DebitBalance"
 	MethodGetQuote         = "GetQuote"
+	MethodGetTicketParams  = "GetTicketParams"
 	MethodListCapabilities = "ListCapabilities"
 
 	// error_class — backend HTTP

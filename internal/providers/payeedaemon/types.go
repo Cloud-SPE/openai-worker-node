@@ -69,6 +69,16 @@ type GetQuoteResult struct {
 	ModelPrices  []ModelPrice
 }
 
+// GetTicketParamsRequest is the worker-side projection of the
+// daemon's exact ticket-params request.
+type GetTicketParamsRequest struct {
+	Sender     []byte
+	Recipient  []byte
+	FaceValue  *big.Int
+	Capability string
+	Offering   string
+}
+
 // TicketParams is the worker-side projection of the proto TicketParams.
 // Byte fields are passed through unchanged; the HTTP handler is the
 // only layer that renders them (as hex strings, per the bridge's

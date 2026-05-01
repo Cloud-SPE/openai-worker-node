@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+var allowedUnpaidV1Paths = map[string]struct{}{
+	"/v1/payment/ticket-params": {},
+}
+
 // finding is one lint hit. Separate from the on-disk string so tests
 // can assert counts and positions without parsing formatted output.
 type finding struct {
@@ -101,6 +105,9 @@ func checkFile(fset *token.FileSet, path string) ([]finding, error) {
 			return true
 		}
 		if !strings.HasPrefix(pathStr, "/v1/") {
+			return true
+		}
+		if _, ok := allowedUnpaidV1Paths[pathStr]; ok {
 			return true
 		}
 		pos := fset.Position(call.Pos())

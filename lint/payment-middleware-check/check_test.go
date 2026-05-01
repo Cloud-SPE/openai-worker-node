@@ -83,6 +83,7 @@ func use() {
 	var m mux
 	m.Register("GET", "/health", nil)
 	m.Register("GET", "/registry/offerings", nil)
+	m.Register("POST", "/v1/payment/ticket-params", nil)
 }
 `
 	p := writeGo(t, t.TempDir(), "a.go", src)
