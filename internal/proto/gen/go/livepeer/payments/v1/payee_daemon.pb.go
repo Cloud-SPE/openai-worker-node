@@ -92,7 +92,7 @@ type GetQuoteRequest struct {
 	Sender []byte `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
 	// Capability the sender intends to purchase. The daemon maps this to the
 	// `PriceInfo.capability` uint32 at the wire boundary. One capability may
-	// host many models; the response lists them all.
+	// host many offerings; the response lists them all.
 	Capability    string `protobuf:"bytes,2,opt,name=capability,proto3" json:"capability,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -145,16 +145,16 @@ func (x *GetQuoteRequest) GetCapability() string {
 type GetQuoteResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Single TicketParams for this (sender, capability). Face value is sized
-	// to cover the most expensive model on this capability so one session
-	// covers the whole model set without re-keying RecipientRandHash per
-	// model.
+	// to cover the most expensive offering on this capability so one session
+	// covers the whole offering set without re-keying RecipientRandHash per
+	// offering.
 	TicketParams *TicketParams `protobuf:"bytes,1,opt,name=ticket_params,json=ticketParams,proto3" json:"ticket_params,omitempty"`
-	// Per-model pricing. Ordered by model name for deterministic comparison
+	// Per-offering pricing. Ordered by offering id for deterministic comparison
 	// on the bridge's quote-refresh cycle. Empty iff the daemon has no
-	// models configured for this capability (caller should treat as NotFound).
-	ModelPrices   []*ModelPrice `protobuf:"bytes,2,rep,name=model_prices,json=modelPrices,proto3" json:"model_prices,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// offerings configured for this capability (caller should treat as NotFound).
+	OfferingPrices []*OfferingPrice `protobuf:"bytes,2,rep,name=offering_prices,json=offeringPrices,proto3" json:"offering_prices,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetQuoteResponse) Reset() {
@@ -194,9 +194,9 @@ func (x *GetQuoteResponse) GetTicketParams() *TicketParams {
 	return nil
 }
 
-func (x *GetQuoteResponse) GetModelPrices() []*ModelPrice {
+func (x *GetQuoteResponse) GetOfferingPrices() []*OfferingPrice {
 	if x != nil {
-		return x.ModelPrices
+		return x.OfferingPrices
 	}
 	return nil
 }
@@ -326,14 +326,14 @@ func (x *GetTicketParamsResponse) GetTicketParams() *TicketParams {
 	return nil
 }
 
-// ModelPrice pairs a model identifier with its wei-per-work-unit price.
+// OfferingPrice pairs an offering identifier with its wei-per-work-unit price.
 // Shared between GetQuoteResponse and ListCapabilitiesResponse so the two
 // surfaces cannot drift.
-type ModelPrice struct {
+type OfferingPrice struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Model identifier, e.g. "llama-3.3-70b". Must match the model string the
+	// Offering identifier, e.g. "llama-3.3-70b". Must match the offering string the
 	// bridge uses when resolving a request to a node.
-	Model string `protobuf:"bytes,1,opt,name=model,proto3" json:"model,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Price for one work unit (see CapabilityEntry.work_unit for the meaning
 	// of "unit" on this capability).
 	PriceInfo     *PriceInfo `protobuf:"bytes,2,opt,name=price_info,json=priceInfo,proto3" json:"price_info,omitempty"`
@@ -341,20 +341,20 @@ type ModelPrice struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ModelPrice) Reset() {
-	*x = ModelPrice{}
+func (x *OfferingPrice) Reset() {
+	*x = OfferingPrice{}
 	mi := &file_livepeer_payments_v1_payee_daemon_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ModelPrice) String() string {
+func (x *OfferingPrice) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ModelPrice) ProtoMessage() {}
+func (*OfferingPrice) ProtoMessage() {}
 
-func (x *ModelPrice) ProtoReflect() protoreflect.Message {
+func (x *OfferingPrice) ProtoReflect() protoreflect.Message {
 	mi := &file_livepeer_payments_v1_payee_daemon_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -366,19 +366,19 @@ func (x *ModelPrice) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ModelPrice.ProtoReflect.Descriptor instead.
-func (*ModelPrice) Descriptor() ([]byte, []int) {
+// Deprecated: Use OfferingPrice.ProtoReflect.Descriptor instead.
+func (*OfferingPrice) Descriptor() ([]byte, []int) {
 	return file_livepeer_payments_v1_payee_daemon_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ModelPrice) GetModel() string {
+func (x *OfferingPrice) GetId() string {
 	if x != nil {
-		return x.Model
+		return x.Id
 	}
 	return ""
 }
 
-func (x *ModelPrice) GetPriceInfo() *PriceInfo {
+func (x *OfferingPrice) GetPriceInfo() *PriceInfo {
 	if x != nil {
 		return x.PriceInfo
 	}
@@ -424,7 +424,7 @@ func (*ListCapabilitiesRequest) Descriptor() ([]byte, []int) {
 type ListCapabilitiesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Full capability catalog as parsed by the daemon at startup. Ordered
-	// by capability string, then model name, for deterministic comparison.
+	// by capability string, then offering id, for deterministic comparison.
 	Capabilities  []*CapabilityEntry `protobuf:"bytes,2,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -478,8 +478,8 @@ type CapabilityEntry struct {
 	// units as opaque int64 — this field is metadata for the worker /
 	// bridge.
 	WorkUnit string `protobuf:"bytes,2,opt,name=work_unit,json=workUnit,proto3" json:"work_unit,omitempty"`
-	// Models served on this capability, with their configured prices.
-	Models        []*ModelPrice `protobuf:"bytes,3,rep,name=models,proto3" json:"models,omitempty"`
+	// Offerings served on this capability, with their configured prices.
+	Offerings     []*OfferingPrice `protobuf:"bytes,3,rep,name=offerings,proto3" json:"offerings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -528,9 +528,9 @@ func (x *CapabilityEntry) GetWorkUnit() string {
 	return ""
 }
 
-func (x *CapabilityEntry) GetModels() []*ModelPrice {
+func (x *CapabilityEntry) GetOfferings() []*OfferingPrice {
 	if x != nil {
-		return x.Models
+		return x.Offerings
 	}
 	return nil
 }
@@ -1355,10 +1355,10 @@ const file_livepeer_payments_v1_payee_daemon_proto_rawDesc = "" +
 	"\x06sender\x18\x01 \x01(\fR\x06sender\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x02 \x01(\tR\n" +
-	"capability\"\xa0\x01\n" +
+	"capability\"\xa9\x01\n" +
 	"\x10GetQuoteResponse\x12G\n" +
-	"\rticket_params\x18\x01 \x01(\v2\".livepeer.payments.v1.TicketParamsR\fticketParams\x12C\n" +
-	"\fmodel_prices\x18\x02 \x03(\v2 .livepeer.payments.v1.ModelPriceR\vmodelPrices\"\xa9\x01\n" +
+	"\rticket_params\x18\x01 \x01(\v2\".livepeer.payments.v1.TicketParamsR\fticketParams\x12L\n" +
+	"\x0foffering_prices\x18\x02 \x03(\v2#.livepeer.payments.v1.OfferingPriceR\x0eofferingPrices\"\xa9\x01\n" +
 	"\x16GetTicketParamsRequest\x12\x16\n" +
 	"\x06sender\x18\x01 \x01(\fR\x06sender\x12\x1c\n" +
 	"\trecipient\x18\x02 \x01(\fR\trecipient\x12\x1d\n" +
@@ -1369,21 +1369,20 @@ const file_livepeer_payments_v1_payee_daemon_proto_rawDesc = "" +
 	"capability\x12\x1a\n" +
 	"\boffering\x18\x05 \x01(\tR\boffering\"b\n" +
 	"\x17GetTicketParamsResponse\x12G\n" +
-	"\rticket_params\x18\x01 \x01(\v2\".livepeer.payments.v1.TicketParamsR\fticketParams\"b\n" +
-	"\n" +
-	"ModelPrice\x12\x14\n" +
-	"\x05model\x18\x01 \x01(\tR\x05model\x12>\n" +
+	"\rticket_params\x18\x01 \x01(\v2\".livepeer.payments.v1.TicketParamsR\fticketParams\"_\n" +
+	"\rOfferingPrice\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12>\n" +
 	"\n" +
 	"price_info\x18\x02 \x01(\v2\x1f.livepeer.payments.v1.PriceInfoR\tpriceInfo\"\x19\n" +
 	"\x17ListCapabilitiesRequest\"}\n" +
 	"\x18ListCapabilitiesResponse\x12I\n" +
-	"\fcapabilities\x18\x02 \x03(\v2%.livepeer.payments.v1.CapabilityEntryR\fcapabilitiesJ\x04\b\x01\x10\x02R\x10protocol_version\"\x88\x01\n" +
+	"\fcapabilities\x18\x02 \x03(\v2%.livepeer.payments.v1.CapabilityEntryR\fcapabilitiesJ\x04\b\x01\x10\x02R\x10protocol_version\"\x91\x01\n" +
 	"\x0fCapabilityEntry\x12\x1e\n" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
 	"capability\x12\x1b\n" +
-	"\twork_unit\x18\x02 \x01(\tR\bworkUnit\x128\n" +
-	"\x06models\x18\x03 \x03(\v2 .livepeer.payments.v1.ModelPriceR\x06models\"U\n" +
+	"\twork_unit\x18\x02 \x01(\tR\bworkUnit\x12A\n" +
+	"\tofferings\x18\x03 \x03(\v2#.livepeer.payments.v1.OfferingPriceR\tofferings\"U\n" +
 	"\x15ProcessPaymentRequest\x12#\n" +
 	"\rpayment_bytes\x18\x01 \x01(\fR\fpaymentBytes\x12\x17\n" +
 	"\awork_id\x18\x02 \x01(\tR\x06workId\"\x92\x01\n" +
@@ -1477,7 +1476,7 @@ var file_livepeer_payments_v1_payee_daemon_proto_goTypes = []any{
 	(*GetQuoteResponse)(nil),                // 2: livepeer.payments.v1.GetQuoteResponse
 	(*GetTicketParamsRequest)(nil),          // 3: livepeer.payments.v1.GetTicketParamsRequest
 	(*GetTicketParamsResponse)(nil),         // 4: livepeer.payments.v1.GetTicketParamsResponse
-	(*ModelPrice)(nil),                      // 5: livepeer.payments.v1.ModelPrice
+	(*OfferingPrice)(nil),                   // 5: livepeer.payments.v1.OfferingPrice
 	(*ListCapabilitiesRequest)(nil),         // 6: livepeer.payments.v1.ListCapabilitiesRequest
 	(*ListCapabilitiesResponse)(nil),        // 7: livepeer.payments.v1.ListCapabilitiesResponse
 	(*CapabilityEntry)(nil),                 // 8: livepeer.payments.v1.CapabilityEntry
@@ -1501,11 +1500,11 @@ var file_livepeer_payments_v1_payee_daemon_proto_goTypes = []any{
 }
 var file_livepeer_payments_v1_payee_daemon_proto_depIdxs = []int32{
 	24, // 0: livepeer.payments.v1.GetQuoteResponse.ticket_params:type_name -> livepeer.payments.v1.TicketParams
-	5,  // 1: livepeer.payments.v1.GetQuoteResponse.model_prices:type_name -> livepeer.payments.v1.ModelPrice
+	5,  // 1: livepeer.payments.v1.GetQuoteResponse.offering_prices:type_name -> livepeer.payments.v1.OfferingPrice
 	24, // 2: livepeer.payments.v1.GetTicketParamsResponse.ticket_params:type_name -> livepeer.payments.v1.TicketParams
-	25, // 3: livepeer.payments.v1.ModelPrice.price_info:type_name -> livepeer.payments.v1.PriceInfo
+	25, // 3: livepeer.payments.v1.OfferingPrice.price_info:type_name -> livepeer.payments.v1.PriceInfo
 	8,  // 4: livepeer.payments.v1.ListCapabilitiesResponse.capabilities:type_name -> livepeer.payments.v1.CapabilityEntry
-	5,  // 5: livepeer.payments.v1.CapabilityEntry.models:type_name -> livepeer.payments.v1.ModelPrice
+	5,  // 5: livepeer.payments.v1.CapabilityEntry.offerings:type_name -> livepeer.payments.v1.OfferingPrice
 	21, // 6: livepeer.payments.v1.ListPendingRedemptionsResponse.redemptions:type_name -> livepeer.payments.v1.PendingRedemption
 	0,  // 7: livepeer.payments.v1.GetRedemptionStatusResponse.status:type_name -> livepeer.payments.v1.GetRedemptionStatusResponse.Status
 	1,  // 8: livepeer.payments.v1.PayeeDaemon.GetQuote:input_type -> livepeer.payments.v1.GetQuoteRequest

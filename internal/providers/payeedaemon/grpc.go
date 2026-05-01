@@ -51,17 +51,17 @@ func (c *grpcClient) ListCapabilities(ctx context.Context) (ListCapabilitiesResu
 	}
 	caps := make([]Capability, 0, len(resp.GetCapabilities()))
 	for _, c := range resp.GetCapabilities() {
-		models := make([]ModelPrice, 0, len(c.GetModels()))
-		for _, m := range c.GetModels() {
-			models = append(models, ModelPrice{
-				Model:               m.GetModel(),
-				PricePerWorkUnitWei: priceInfoToWeiString(m.GetPriceInfo()),
+		offerings := make([]OfferingPrice, 0, len(c.GetOfferings()))
+		for _, o := range c.GetOfferings() {
+			offerings = append(offerings, OfferingPrice{
+				ID:                  o.GetId(),
+				PricePerWorkUnitWei: priceInfoToWeiString(o.GetPriceInfo()),
 			})
 		}
 		caps = append(caps, Capability{
 			Capability: c.GetCapability(),
 			WorkUnit:   c.GetWorkUnit(),
-			Models:     models,
+			Offerings:  offerings,
 		})
 	}
 	return ListCapabilitiesResult{
@@ -107,12 +107,12 @@ func (c *grpcClient) GetQuote(ctx context.Context, sender []byte, capability str
 				CreationRoundBlockHash: tp.GetExpirationParams().GetCreationRoundBlockHash(),
 			},
 		},
-		ModelPrices: make([]ModelPrice, 0, len(resp.GetModelPrices())),
+		OfferingPrices: make([]OfferingPrice, 0, len(resp.GetOfferingPrices())),
 	}
-	for _, m := range resp.GetModelPrices() {
-		out.ModelPrices = append(out.ModelPrices, ModelPrice{
-			Model:               m.GetModel(),
-			PricePerWorkUnitWei: priceInfoToWeiString(m.GetPriceInfo()),
+	for _, o := range resp.GetOfferingPrices() {
+		out.OfferingPrices = append(out.OfferingPrices, OfferingPrice{
+			ID:                  o.GetId(),
+			PricePerWorkUnitWei: priceInfoToWeiString(o.GetPriceInfo()),
 		})
 	}
 	return out, nil

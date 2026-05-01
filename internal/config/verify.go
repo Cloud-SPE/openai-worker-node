@@ -33,19 +33,17 @@ func VerifyDaemonCatalog(cfg *Config, daemon payeedaemon.ListCapabilitiesResult)
 		if string(cfgCap.WorkUnit) != daemonCap.WorkUnit {
 			return fmt.Errorf("verify: capability[%d] (%q) work_unit mismatch: config=%q daemon=%q", i, cfgCap.Capability, cfgCap.WorkUnit, daemonCap.WorkUnit)
 		}
-		// payment-daemon proto still uses `Models` (its own contract,
-		// not renamed in v3.0.0 — only the registry contract renamed).
-		// Compare config offerings against daemon models 1:1 by index.
-		if got, want := len(daemonCap.Models), len(cfgCap.Offerings); got != want {
+		// Compare config offerings against daemon offerings 1:1 by index.
+		if got, want := len(daemonCap.Offerings), len(cfgCap.Offerings); got != want {
 			return fmt.Errorf("verify: capability[%d] (%q) offering count mismatch: config=%d daemon=%d", i, cfgCap.Capability, want, got)
 		}
 		for j, cfgOffering := range cfgCap.Offerings {
-			daemonModel := daemonCap.Models[j]
-			if string(cfgOffering.Model) != daemonModel.Model {
-				return fmt.Errorf("verify: capability[%d] (%q) offering[%d] id mismatch: config=%q daemon=%q", i, cfgCap.Capability, j, cfgOffering.Model, daemonModel.Model)
+			daemonOffering := daemonCap.Offerings[j]
+			if string(cfgOffering.Model) != daemonOffering.ID {
+				return fmt.Errorf("verify: capability[%d] (%q) offering[%d] id mismatch: config=%q daemon=%q", i, cfgCap.Capability, j, cfgOffering.Model, daemonOffering.ID)
 			}
-			if cfgOffering.PricePerWorkUnitWei != daemonModel.PricePerWorkUnitWei {
-				return fmt.Errorf("verify: capability[%d] (%q) offering[%d] (%q) price mismatch: config=%q daemon=%q", i, cfgCap.Capability, j, cfgOffering.Model, cfgOffering.PricePerWorkUnitWei, daemonModel.PricePerWorkUnitWei)
+			if cfgOffering.PricePerWorkUnitWei != daemonOffering.PricePerWorkUnitWei {
+				return fmt.Errorf("verify: capability[%d] (%q) offering[%d] (%q) price mismatch: config=%q daemon=%q", i, cfgCap.Capability, j, cfgOffering.Model, cfgOffering.PricePerWorkUnitWei, daemonOffering.PricePerWorkUnitWei)
 			}
 		}
 	}

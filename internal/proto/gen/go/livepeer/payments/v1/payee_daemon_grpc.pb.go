@@ -45,11 +45,11 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PayeeDaemonClient interface {
-	// Return the TicketParams and per-model pricing for a (sender, capability)
+	// Return the TicketParams and per-offering pricing for a (sender, capability)
 	// pair. The payer app queries this via its PayeeApp peer and hands the
 	// result to its own PayerDaemon when starting a session. One TicketParams
-	// covers every model on the capability; per-model prices are carried in
-	// `model_prices` and are what the payer checks against when billing.
+	// covers every offering on the capability; per-offering prices are carried in
+	// `offering_prices` and are what the payer checks against when billing.
 	GetQuote(ctx context.Context, in *GetQuoteRequest, opts ...grpc.CallOption) (*GetQuoteResponse, error)
 	// Return canonical payee-issued TicketParams for an exact sender /
 	// recipient / face-value tuple. Pricing is handled upstream by
@@ -195,11 +195,11 @@ func (c *payeeDaemonClient) GetRedemptionStatus(ctx context.Context, in *GetRede
 // All implementations should embed UnimplementedPayeeDaemonServer
 // for forward compatibility.
 type PayeeDaemonServer interface {
-	// Return the TicketParams and per-model pricing for a (sender, capability)
+	// Return the TicketParams and per-offering pricing for a (sender, capability)
 	// pair. The payer app queries this via its PayeeApp peer and hands the
 	// result to its own PayerDaemon when starting a session. One TicketParams
-	// covers every model on the capability; per-model prices are carried in
-	// `model_prices` and are what the payer checks against when billing.
+	// covers every offering on the capability; per-offering prices are carried in
+	// `offering_prices` and are what the payer checks against when billing.
 	GetQuote(context.Context, *GetQuoteRequest) (*GetQuoteResponse, error)
 	// Return canonical payee-issued TicketParams for an exact sender /
 	// recipient / face-value tuple. Pricing is handled upstream by

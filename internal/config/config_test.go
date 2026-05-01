@@ -87,16 +87,16 @@ func TestVerifyDaemonCatalog_HappyPath(t *testing.T) {
 			{
 				Capability: "openai:/v1/chat/completions",
 				WorkUnit:   "token",
-				Models: []payeedaemon.ModelPrice{
-					{Model: "llama-3.3-70b", PricePerWorkUnitWei: "2000000000"},
-					{Model: "mistral-7b-instruct", PricePerWorkUnitWei: "500000000"},
+				Offerings: []payeedaemon.OfferingPrice{
+					{ID: "llama-3.3-70b", PricePerWorkUnitWei: "2000000000"},
+					{ID: "mistral-7b-instruct", PricePerWorkUnitWei: "500000000"},
 				},
 			},
 			{
 				Capability: "openai:/v1/embeddings",
 				WorkUnit:   "token",
-				Models: []payeedaemon.ModelPrice{
-					{Model: "text-embedding-3-small", PricePerWorkUnitWei: "100000000"},
+				Offerings: []payeedaemon.OfferingPrice{
+					{ID: "text-embedding-3-small", PricePerWorkUnitWei: "100000000"},
 				},
 			},
 		},
@@ -113,16 +113,16 @@ func TestVerifyDaemonCatalog_PriceMismatch(t *testing.T) {
 			{
 				Capability: "openai:/v1/chat/completions",
 				WorkUnit:   "token",
-				Models: []payeedaemon.ModelPrice{
-					{Model: "llama-3.3-70b", PricePerWorkUnitWei: "1"},
-					{Model: "mistral-7b-instruct", PricePerWorkUnitWei: "500000000"},
+				Offerings: []payeedaemon.OfferingPrice{
+					{ID: "llama-3.3-70b", PricePerWorkUnitWei: "1"},
+					{ID: "mistral-7b-instruct", PricePerWorkUnitWei: "500000000"},
 				},
 			},
 			{
 				Capability: "openai:/v1/embeddings",
 				WorkUnit:   "token",
-				Models: []payeedaemon.ModelPrice{
-					{Model: "text-embedding-3-small", PricePerWorkUnitWei: "100000000"},
+				Offerings: []payeedaemon.OfferingPrice{
+					{ID: "text-embedding-3-small", PricePerWorkUnitWei: "100000000"},
 				},
 			},
 		},

@@ -26,7 +26,7 @@ type Client interface {
 	// own worker.yaml parse doesn't byte-match this response.
 	ListCapabilities(ctx context.Context) (ListCapabilitiesResult, error)
 
-	// GetQuote returns the daemon's TicketParams + per-model prices
+	// GetQuote returns the daemon's TicketParams + per-offering prices
 	// for a (sender, capability) pair. The v3.0.1 worker no longer
 	// exposes quote HTTP endpoints, but the provider surface keeps this
 	// method so it remains wire-compatible with the daemon contract.

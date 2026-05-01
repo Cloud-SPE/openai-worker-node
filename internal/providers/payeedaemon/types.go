@@ -44,16 +44,16 @@ type Capability struct {
 	// WorkUnit identifies the metering unit ("token", "audio_second",
 	// ...). Opaque to the daemon; used by modules + observability.
 	WorkUnit string
-	// Models is the list of models served on this capability, each
+	// Offerings is the list of offerings served on this capability, each
 	// with its configured per-unit price. Ordered as the daemon
-	// emits them (capability string, then model name).
-	Models []ModelPrice
+	// emits them (capability string, then offering id).
+	Offerings []OfferingPrice
 }
 
-// ModelPrice mirrors paymentsv1.ModelPrice.
-type ModelPrice struct {
-	// Model identifier (e.g. "llama-3.3-70b").
-	Model string
+// OfferingPrice mirrors paymentsv1.OfferingPrice.
+type OfferingPrice struct {
+	// Offering identifier (e.g. "llama-3.3-70b").
+	ID string
 	// PricePerWorkUnitWei, as a decimal string. Retained as a string
 	// so byte-equal comparison against the worker's worker.yaml parse
 	// is exact — no rounding, no scientific-notation drift.
@@ -66,7 +66,7 @@ type ModelPrice struct {
 // JSON shape the bridge expects without touching proto types.
 type GetQuoteResult struct {
 	TicketParams TicketParams
-	ModelPrices  []ModelPrice
+	OfferingPrices []OfferingPrice
 }
 
 // GetTicketParamsRequest is the worker-side projection of the
