@@ -73,6 +73,31 @@ Exempted packages and reasons:
 
 **Resolution target:** One small dedicated plan per package (or one plan covering all four). Plan 0010 is the natural successor. Any package brought above 75% should be removed from the `EXEMPT` env var in `.github/workflows/test.yml` in the same PR that adds the tests.
 
+### payment-ticket-params-proxy
+**Opened:** 2026-04-30 (unclaimed)
+**Context:** The payments/modules side clarified that v3 keeps manifest/resolver for pricing, but workers still need one cryptographic helper route: `POST /v1/payment/ticket-params`. This is **not** a pricing endpoint and must not revive `/quote` semantics. The worker should:
+
+- require the same optional bearer-token pattern as `/registry/offerings` (reuse `auth_token` when configured)
+- validate a request body shaped like:
+  - `sender_eth_address`
+  - `recipient_eth_address`
+  - `face_value_wei`
+  - `capability`
+  - `offering`
+- proxy the request over the local unix socket to receiver-mode `livepeer-payment-daemon`
+- return the daemon's full canonical ticket-params response unchanged enough for sender-side ticket minting
+- avoid any worker-local crypto, pricing, manifest lookup, or caching
+
+Expected HTTP behavior:
+
+- `401` on missing/mismatched bearer token when auth is enabled
+- `400` on malformed request
+- `503` when the local payment-daemon is unavailable
+- `5xx` when the receiver daemon cannot issue valid params
+
+Upstream dependency: `livepeer-modules-project/payment-daemon` must first expose the new receiver-mode RPC and own the canonical request/response schema. This repo should implement only the thin HTTP-to-daemon proxy once that contract lands.
+**Resolution target:** Unclaimed — wait for the modules/payment-daemon RPC contract, then open a dedicated exec plan for route wiring, validation, provider method expansion, tests, and docs.
+
 ## Resolved
 
 _None yet._
