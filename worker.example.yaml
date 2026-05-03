@@ -1,4 +1,4 @@
-# Annotated worker.yaml — shared v3.0.1 config for openai-worker-node
+# Annotated worker.yaml — shared receiver-side config for openai-worker-node
 # and livepeer-payment-daemon (receiver mode).
 #
 # Both processes parse this file independently and cross-check the
