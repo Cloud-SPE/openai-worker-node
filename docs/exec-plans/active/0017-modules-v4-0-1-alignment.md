@@ -24,6 +24,9 @@ Update repo-owned operator-facing defaults and examples so `openai-worker-node` 
 - [x] Verify the repo still passes relevant checks and record cross-repo alignment findings.
 
 ## Decisions log
+### 2026-05-03 — Scope correction: v4.0.1 changed the payee session runtime contract
+Reason: Follow-up debugging against the `livepeer-modules-project` source showed that `payment-daemon` `v4.0.1` added a required payee-side `OpenSession` step before `ProcessPayment`. That protocol change is outside this plan's docs/examples scope and is now tracked separately in active plan `0018-payee-session-contract-v4-0-1.md`.
+
 ### 2026-05-03 — Treat v4.0.1 as a release-pin refresh, not a schema migration
 Reason: The upstream `livepeer-modules-project` diff from `v4.0.0` to `v4.0.1` is CI/dependency oriented and does not change the worker/payment-daemon shared `worker.yaml` contract. This repo should therefore update image/default-version references and stale examples, but keep code comments that correctly describe the v3.0.1-era contract shape.
 

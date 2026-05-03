@@ -3,6 +3,7 @@ package payeedaemon
 import (
 	"context"
 	"errors"
+	"math/big"
 	"testing"
 
 	"github.com/Cloud-SPE/openai-worker-node/internal/providers/metrics"
@@ -60,6 +61,39 @@ func TestMeteredClient_GetQuoteError(t *testing.T) {
 	inner.GetQuoteError = errors.New("boom")
 	c := WithMetrics(inner, rec)
 	if _, err := c.GetQuote(context.Background(), nil, "x"); err == nil {
+		t.Fatal("expected error")
+	}
+	if got := rec.LastDaemonRPCOutcome.Load(); got != metrics.OutcomeError {
+		t.Fatalf("outcome = %v", got)
+	}
+}
+
+func TestMeteredClient_OpenSessionOK(t *testing.T) {
+	rec := metrics.NewCounter()
+	c := WithMetrics(NewFake(), rec)
+	if _, err := c.OpenSession(context.Background(), OpenSessionRequest{
+		WorkID:              "wid",
+		Capability:          "openai:/v1/chat/completions",
+		Offering:            "test-model",
+		PricePerWorkUnitWei: big.NewInt(100),
+		WorkUnit:            "token",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := rec.LastDaemonRPCMethod.Load(); got != metrics.MethodOpenSession {
+		t.Fatalf("method = %v", got)
+	}
+	if got := rec.LastDaemonRPCOutcome.Load(); got != metrics.OutcomeOK {
+		t.Fatalf("outcome = %v", got)
+	}
+}
+
+func TestMeteredClient_OpenSessionError(t *testing.T) {
+	rec := metrics.NewCounter()
+	inner := NewFake()
+	inner.OpenSessionError = errors.New("boom")
+	c := WithMetrics(inner, rec)
+	if _, err := c.OpenSession(context.Background(), OpenSessionRequest{}); err == nil {
 		t.Fatal("expected error")
 	}
 	if got := rec.LastDaemonRPCOutcome.Load(); got != metrics.OutcomeError {
@@ -128,6 +162,33 @@ func TestMeteredClient_DebitBalanceError(t *testing.T) {
 	}
 }
 
+func TestMeteredClient_CloseSessionOK(t *testing.T) {
+	rec := metrics.NewCounter()
+	c := WithMetrics(NewFake(), rec)
+	if _, err := c.CloseSession(context.Background(), []byte{0x01}, "wid"); err != nil {
+		t.Fatal(err)
+	}
+	if got := rec.LastDaemonRPCMethod.Load(); got != metrics.MethodCloseSession {
+		t.Fatalf("method = %v", got)
+	}
+	if got := rec.LastDaemonRPCOutcome.Load(); got != metrics.OutcomeOK {
+		t.Fatalf("outcome = %v", got)
+	}
+}
+
+func TestMeteredClient_CloseSessionError(t *testing.T) {
+	rec := metrics.NewCounter()
+	inner := NewFake()
+	inner.CloseSessionError = errors.New("boom")
+	c := WithMetrics(inner, rec)
+	if _, err := c.CloseSession(context.Background(), []byte{0x01}, "wid"); err == nil {
+		t.Fatal("expected error")
+	}
+	if got := rec.LastDaemonRPCOutcome.Load(); got != metrics.OutcomeError {
+		t.Fatalf("outcome = %v", got)
+	}
+}
+
 func TestMeteredClient_ClosePassesThrough(t *testing.T) {
 	rec := metrics.NewCounter()
 	c := WithMetrics(NewFake(), rec)
@@ -162,8 +223,10 @@ func TestMeteredClient_ObserveCountMatchesIncCount(t *testing.T) {
 
 	_, _ = c.ListCapabilities(ctx)
 	_, _ = c.GetQuote(ctx, nil, "x")
+	_, _ = c.OpenSession(ctx, OpenSessionRequest{WorkID: "w", Capability: "x", Offering: "y", PricePerWorkUnitWei: big.NewInt(1), WorkUnit: "token"})
 	_, _ = c.ProcessPayment(ctx, []byte{1}, "w")
 	_, _ = c.DebitBalance(ctx, nil, "w", 0)
+	_, _ = c.CloseSession(ctx, nil, "w")
 
 	// Trigger an error path too.
 	inner.ProcessPaymentError = errors.New("boom")
@@ -172,7 +235,7 @@ func TestMeteredClient_ObserveCountMatchesIncCount(t *testing.T) {
 	if rec.DaemonRPCCalls.Load() != rec.DaemonRPCObserves.Load() {
 		t.Fatalf("calls=%d observes=%d (must be equal)", rec.DaemonRPCCalls.Load(), rec.DaemonRPCObserves.Load())
 	}
-	if rec.DaemonRPCCalls.Load() != 5 {
-		t.Fatalf("expected 5 RPCs metered, got %d", rec.DaemonRPCCalls.Load())
+	if rec.DaemonRPCCalls.Load() != 7 {
+		t.Fatalf("expected 7 RPCs metered, got %d", rec.DaemonRPCCalls.Load())
 	}
 }

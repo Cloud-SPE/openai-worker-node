@@ -34,8 +34,14 @@ service PayeeDaemon {
   // worker's /registry/offerings projection/cross-check surface.
   rpc ListCapabilities(ListCapabilitiesRequest) returns (ListCapabilitiesResponse);
 
+  // Open a payee-side session and bind authoritative pricing metadata to
+  // `work_id`. The worker later seals the session's sender on the first
+  // successful ProcessPayment.
+  rpc OpenSession(OpenSessionRequest) returns (OpenSessionResponse);
+
   // Validate an incoming payment blob, credit the sender's balance by the
   // payment's expected value, and queue any winning tickets for redemption.
+  // Requires a previously-opened session for `work_id`.
   rpc ProcessPayment(ProcessPaymentRequest) returns (ProcessPaymentResponse);
 
   // Debit work units from a (sender, work_id) balance after the payee has
@@ -147,13 +153,41 @@ message CapabilityEntry {
   repeated OfferingPrice offerings = 3;
 }
 
+message OpenSessionRequest {
+  // Opaque session identifier chosen by the payee app.
+  string work_id = 1;
+
+  // Capability the session is opened against.
+  string capability = 2;
+
+  // Offering the session is opened against.
+  string offering = 3;
+
+  // Authoritative price per work unit for this session (wei, big-endian
+  // bytes).
+  bytes price_per_work_unit_wei = 4;
+
+  // Work-unit identifier for this session ("token", "second", ...).
+  string work_unit = 5;
+}
+
+message OpenSessionResponse {
+  enum Outcome {
+    OUTCOME_UNSPECIFIED = 0;
+    OUTCOME_OPENED = 1;
+    OUTCOME_ALREADY_OPEN = 2;
+  }
+
+  Outcome outcome = 1;
+}
+
 message ProcessPaymentRequest {
   // Wire-format `livepeer.payments.v1.Payment` bytes, exactly as received
   // from the sender.
   bytes payment_bytes = 1;
 
-  // Opaque session identifier chosen by the payee app. The daemon uses this
-  // as the balance key.
+  // Opaque session identifier chosen by the payee app. The daemon requires
+  // a previously-opened session with this id.
   string work_id = 2;
 }
 

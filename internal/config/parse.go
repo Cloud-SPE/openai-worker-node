@@ -17,7 +17,7 @@ import (
 )
 
 // yamlConfig is the shared on-disk worker.yaml shape for the worker and
-// receiver-mode daemon in v3.0.1.
+// receiver-mode daemon.
 type yamlConfig struct {
 	ProtocolVersion          int              `yaml:"protocol_version"`
 	WorkerEthAddress         string           `yaml:"worker_eth_address,omitempty"`
@@ -131,7 +131,7 @@ func validate(cfg *yamlConfig) error {
 		return errors.New("config.validate: nil config")
 	}
 	if cfg.ServiceRegistryPublisher.Present {
-		return errors.New("worker.yaml: 'service_registry_publisher' block is not supported in v3.0.1 (archetype A: workers do not self-publish; remove the block)")
+		return errors.New("worker.yaml: 'service_registry_publisher' block is not supported by this worker build (archetype A: workers do not self-publish; remove the block)")
 	}
 	if cfg.ProtocolVersion != CurrentProtocolVersion {
 		return fmt.Errorf("worker.yaml: protocol_version=%d is not supported by this worker build (CurrentProtocolVersion=%d); upgrade or downgrade one side", cfg.ProtocolVersion, CurrentProtocolVersion)

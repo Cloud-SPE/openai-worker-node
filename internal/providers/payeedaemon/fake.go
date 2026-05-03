@@ -24,6 +24,8 @@ type Fake struct {
 
 	ProcessPaymentError       error
 	DebitBalanceError         error
+	OpenSessionError          error
+	CloseSessionError         error
 	ListCapabilitiesResponse  ListCapabilitiesResult
 	ListCapabilitiesError     error
 	GetQuoteResponse          GetQuoteResult
@@ -35,12 +37,17 @@ type Fake struct {
 	SenderAddress             []byte
 	ProcessPaymentCalls       int
 	DebitBalanceCalls         int
+	OpenSessionCalls          int
+	CloseSessionCalls         int
 	GetQuoteCalls             int
 	GetTicketParamsCalls      int
 	LastProcessPaymentPayload []byte
 	LastDebitBalanceWorkUnits int64
+	LastOpenSession           OpenSessionRequest
 	LastProcessPaymentWorkID  string
 	LastDebitBalanceWorkID    string
+	LastCloseSessionWorkID    string
+	LastCloseSessionSender    []byte
 	LastGetQuoteSender        []byte
 	LastGetQuoteCapability    string
 	LastGetTicketParams       GetTicketParamsRequest
@@ -113,6 +120,25 @@ func (f *Fake) GetTicketParams(_ context.Context, req GetTicketParamsRequest) (T
 	}, nil
 }
 
+func (f *Fake) OpenSession(_ context.Context, req OpenSessionRequest) (OpenSessionResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.OpenSessionCalls++
+	f.LastOpenSession = OpenSessionRequest{
+		WorkID:     req.WorkID,
+		Capability: req.Capability,
+		Offering:   req.Offering,
+		WorkUnit:   req.WorkUnit,
+	}
+	if req.PricePerWorkUnitWei != nil {
+		f.LastOpenSession.PricePerWorkUnitWei = new(big.Int).Set(req.PricePerWorkUnitWei)
+	}
+	if f.OpenSessionError != nil {
+		return OpenSessionResult{}, f.OpenSessionError
+	}
+	return OpenSessionResult{Opened: true}, nil
+}
+
 func (f *Fake) ProcessPayment(_ context.Context, paymentBytes []byte, workID string) (ProcessPaymentResult, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -155,6 +181,18 @@ func (f *Fake) DebitBalance(_ context.Context, sender []byte, workID string, wor
 	bal.Sub(bal, debit)
 	f.balances[key] = bal
 	return DebitBalanceResult{BalanceWei: new(big.Int).Set(bal)}, nil
+}
+
+func (f *Fake) CloseSession(_ context.Context, sender []byte, workID string) (CloseSessionResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.CloseSessionCalls++
+	f.LastCloseSessionWorkID = workID
+	f.LastCloseSessionSender = append([]byte(nil), sender...)
+	if f.CloseSessionError != nil {
+		return CloseSessionResult{}, f.CloseSessionError
+	}
+	return CloseSessionResult{Closed: true}, nil
 }
 
 // BalanceFor returns the current balance for a (sender, workID) pair.

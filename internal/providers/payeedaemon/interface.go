@@ -12,8 +12,10 @@ import (
 //
 //   - ListCapabilities at startup for the worker/daemon catalog
 //     cross-check.
+//   - OpenSession + CloseSession to bracket one request/response work
+//     unit ledger.
 //   - GetQuote is retained for compatibility with the daemon surface
-//     even though the v3.0.1 worker no longer exposes quote endpoints.
+//     even though the worker no longer exposes quote endpoints.
 //   - ProcessPayment + DebitBalance on every paid request.
 //   - Close on shutdown.
 //
@@ -27,9 +29,9 @@ type Client interface {
 	ListCapabilities(ctx context.Context) (ListCapabilitiesResult, error)
 
 	// GetQuote returns the daemon's TicketParams + per-offering prices
-	// for a (sender, capability) pair. The v3.0.1 worker no longer
-	// exposes quote HTTP endpoints, but the provider surface keeps this
-	// method so it remains wire-compatible with the daemon contract.
+	// for a (sender, capability) pair. The worker no longer exposes
+	// quote HTTP endpoints, but the provider surface keeps this method
+	// so it remains wire-compatible with the daemon contract.
 	GetQuote(ctx context.Context, sender []byte, capability string) (GetQuoteResult, error)
 
 	// GetTicketParams returns canonical payee-issued ticket params for
@@ -37,11 +39,14 @@ type Client interface {
 	// this only as a thin HTTP proxy for the gateway-side payment flow.
 	GetTicketParams(ctx context.Context, req GetTicketParamsRequest) (TicketParams, error)
 
+	// OpenSession binds authoritative pricing metadata to a payee-side
+	// work_id before the worker asks the daemon to process payment into
+	// that session.
+	OpenSession(ctx context.Context, req OpenSessionRequest) (OpenSessionResult, error)
+
 	// ProcessPayment validates a payment blob and credits the sender's
-	// balance. The workID identifies the session the credit posts to;
-	// typically the worker derives it from the payment (e.g. the
-	// RecipientRandHash hex) so a sender + capability pair collapses
-	// to a single long-lived session.
+	// balance. The workID identifies the already-opened payee session
+	// the credit posts to.
 	ProcessPayment(ctx context.Context, paymentBytes []byte, workID string) (ProcessPaymentResult, error)
 
 	// DebitBalance subtracts workUnits from the (sender, workID)
@@ -49,6 +54,10 @@ type Client interface {
 	// caller over-debited and must refuse to serve further work on
 	// this session.
 	DebitBalance(ctx context.Context, sender []byte, workID string, workUnits int64) (DebitBalanceResult, error)
+
+	// CloseSession closes an open, sender-bound payee session after the
+	// worker has finished debiting the request's actual work.
+	CloseSession(ctx context.Context, sender []byte, workID string) (CloseSessionResult, error)
 
 	// Close releases the underlying transport. Calling any other
 	// method after Close is undefined.
@@ -108,6 +117,18 @@ func (m *meteredClient) GetTicketParams(ctx context.Context, req GetTicketParams
 	return res, err
 }
 
+func (m *meteredClient) OpenSession(ctx context.Context, req OpenSessionRequest) (OpenSessionResult, error) {
+	start := time.Now()
+	res, err := m.inner.OpenSession(ctx, req)
+	outcome := metrics.OutcomeOK
+	if err != nil {
+		outcome = metrics.OutcomeError
+	}
+	m.rec.IncDaemonRPC(metrics.MethodOpenSession, outcome)
+	m.rec.ObserveDaemonRPC(metrics.MethodOpenSession, outcome, time.Since(start))
+	return res, err
+}
+
 func (m *meteredClient) ProcessPayment(ctx context.Context, paymentBytes []byte, workID string) (ProcessPaymentResult, error) {
 	start := time.Now()
 	res, err := m.inner.ProcessPayment(ctx, paymentBytes, workID)
@@ -129,6 +150,18 @@ func (m *meteredClient) DebitBalance(ctx context.Context, sender []byte, workID 
 	}
 	m.rec.IncDaemonRPC(metrics.MethodDebitBalance, outcome)
 	m.rec.ObserveDaemonRPC(metrics.MethodDebitBalance, outcome, time.Since(start))
+	return res, err
+}
+
+func (m *meteredClient) CloseSession(ctx context.Context, sender []byte, workID string) (CloseSessionResult, error) {
+	start := time.Now()
+	res, err := m.inner.CloseSession(ctx, sender, workID)
+	outcome := metrics.OutcomeOK
+	if err != nil {
+		outcome = metrics.OutcomeError
+	}
+	m.rec.IncDaemonRPC(metrics.MethodCloseSession, outcome)
+	m.rec.ObserveDaemonRPC(metrics.MethodCloseSession, outcome, time.Since(start))
 	return res, err
 }
 

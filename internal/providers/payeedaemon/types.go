@@ -2,6 +2,23 @@ package payeedaemon
 
 import "math/big"
 
+// OpenSessionRequest is the worker-side projection of the daemon's
+// authoritative session-binding request.
+type OpenSessionRequest struct {
+	WorkID              string
+	Capability          string
+	Offering            string
+	PricePerWorkUnitWei *big.Int
+	WorkUnit            string
+}
+
+// OpenSessionResult is the domain projection of
+// paymentsv1.OpenSessionResponse.
+type OpenSessionResult struct {
+	Opened      bool
+	AlreadyOpen bool
+}
+
 // ProcessPaymentResult is the domain projection of
 // paymentsv1.ProcessPaymentResponse. Wei values are *big.Int because
 // every consumer (middleware reconciliation, balance checks, logs)
@@ -27,6 +44,13 @@ type DebitBalanceResult struct {
 	// treat a negative balance as insufficient and refuse to serve
 	// further work; the daemon itself does not gate on this.
 	BalanceWei *big.Int
+}
+
+// CloseSessionResult is the domain projection of
+// paymentsv1.PayeeDaemonCloseSessionResponse.
+type CloseSessionResult struct {
+	Closed        bool
+	AlreadyClosed bool
 }
 
 // ListCapabilitiesResult mirrors paymentsv1.ListCapabilitiesResponse

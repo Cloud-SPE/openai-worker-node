@@ -154,11 +154,29 @@ func TestPaymentMiddleware_HappyPath(t *testing.T) {
 	if f.payee.ProcessPaymentCalls != 1 {
 		t.Errorf("ProcessPayment calls: got %d, want 1", f.payee.ProcessPaymentCalls)
 	}
+	if f.payee.OpenSessionCalls != 1 {
+		t.Errorf("OpenSession calls: got %d, want 1", f.payee.OpenSessionCalls)
+	}
 	if f.payee.DebitBalanceCalls != 1 {
 		t.Errorf("DebitBalance calls: got %d, want 1 (no reconcile when actual==estimate)", f.payee.DebitBalanceCalls)
 	}
+	if f.payee.CloseSessionCalls != 1 {
+		t.Errorf("CloseSession calls: got %d, want 1", f.payee.CloseSessionCalls)
+	}
 	if f.payee.LastDebitBalanceWorkUnits != 10 {
 		t.Errorf("debit work_units: got %d, want 10", f.payee.LastDebitBalanceWorkUnits)
+	}
+	if got := f.payee.LastOpenSession.Capability; got != "openai:/v1/chat/completions" {
+		t.Errorf("OpenSession capability: got %q", got)
+	}
+	if got := f.payee.LastOpenSession.Offering; got != "test-model" {
+		t.Errorf("OpenSession offering: got %q", got)
+	}
+	if got := f.payee.LastOpenSession.WorkUnit; got != "token" {
+		t.Errorf("OpenSession work unit: got %q", got)
+	}
+	if got := f.payee.LastOpenSession.PricePerWorkUnitWei.String(); got != "100" {
+		t.Errorf("OpenSession price_per_work_unit_wei: got %q", got)
 	}
 	if got, _ := f.module.servedBackend.Load().(string); got != "http://backend.local:9000" {
 		t.Errorf("served backend: got %q, want http://backend.local:9000", got)
@@ -173,6 +191,9 @@ func TestPaymentMiddleware_MissingHeader(t *testing.T) {
 	}
 	if f.payee.ProcessPaymentCalls != 0 {
 		t.Errorf("ProcessPayment should not be called; got %d", f.payee.ProcessPaymentCalls)
+	}
+	if f.payee.OpenSessionCalls != 0 {
+		t.Errorf("OpenSession should not be called; got %d", f.payee.OpenSessionCalls)
 	}
 	assertErrorCode(t, rr.Body.Bytes(), "missing_or_invalid_payment")
 }
@@ -196,6 +217,12 @@ func TestPaymentMiddleware_ProcessPaymentRejected(t *testing.T) {
 	if f.payee.DebitBalanceCalls != 0 {
 		t.Errorf("DebitBalance should not be called after ProcessPayment failure")
 	}
+	if f.payee.OpenSessionCalls != 1 {
+		t.Errorf("OpenSession should be called before ProcessPayment; got %d", f.payee.OpenSessionCalls)
+	}
+	if f.payee.CloseSessionCalls != 0 {
+		t.Errorf("CloseSession should not be called when ProcessPayment fails before sender seal; got %d", f.payee.CloseSessionCalls)
+	}
 	assertErrorCode(t, rr.Body.Bytes(), "payment_rejected")
 }
 
@@ -209,6 +236,9 @@ func TestPaymentMiddleware_ModelExtractionFails(t *testing.T) {
 	if f.payee.DebitBalanceCalls != 0 {
 		t.Errorf("DebitBalance should not be called before route is resolved")
 	}
+	if f.payee.OpenSessionCalls != 0 {
+		t.Errorf("OpenSession should not be called before route is resolved")
+	}
 }
 
 func TestPaymentMiddleware_UnknownModel(t *testing.T) {
@@ -220,6 +250,9 @@ func TestPaymentMiddleware_UnknownModel(t *testing.T) {
 	assertErrorCode(t, rr.Body.Bytes(), "capability_not_found")
 	if f.payee.DebitBalanceCalls != 0 {
 		t.Errorf("DebitBalance should not be called for unknown route")
+	}
+	if f.payee.OpenSessionCalls != 0 {
+		t.Errorf("OpenSession should not be called for unknown route")
 	}
 }
 
@@ -236,6 +269,12 @@ func TestPaymentMiddleware_EstimateError(t *testing.T) {
 	if f.payee.DebitBalanceCalls != 0 {
 		t.Errorf("DebitBalance must not run when estimate errors")
 	}
+	if f.payee.OpenSessionCalls != 1 {
+		t.Errorf("OpenSession should have been called before estimate failure; got %d", f.payee.OpenSessionCalls)
+	}
+	if f.payee.CloseSessionCalls != 1 {
+		t.Errorf("CloseSession should be called after ProcessPayment succeeds, even when estimate fails; got %d", f.payee.CloseSessionCalls)
+	}
 }
 
 func TestPaymentMiddleware_DebitError(t *testing.T) {
@@ -246,6 +285,9 @@ func TestPaymentMiddleware_DebitError(t *testing.T) {
 		t.Fatalf("status: got %d, want 502", rr.Code)
 	}
 	assertErrorCode(t, rr.Body.Bytes(), "backend_unavailable")
+	if f.payee.CloseSessionCalls != 1 {
+		t.Errorf("CloseSession calls: got %d, want 1 on debit failure after ProcessPayment", f.payee.CloseSessionCalls)
+	}
 }
 
 func TestPaymentMiddleware_InsufficientBalance(t *testing.T) {
@@ -257,6 +299,9 @@ func TestPaymentMiddleware_InsufficientBalance(t *testing.T) {
 		t.Fatalf("status: got %d, want 402", rr.Code)
 	}
 	assertErrorCode(t, rr.Body.Bytes(), "insufficient_balance")
+	if f.payee.CloseSessionCalls != 1 {
+		t.Errorf("CloseSession calls: got %d, want 1 on insufficient balance after ProcessPayment", f.payee.CloseSessionCalls)
+	}
 }
 
 func TestPaymentMiddleware_ReconcilesWhenActualExceedsEstimate(t *testing.T) {
@@ -271,6 +316,9 @@ func TestPaymentMiddleware_ReconcilesWhenActualExceedsEstimate(t *testing.T) {
 	}
 	if f.payee.DebitBalanceCalls != 2 {
 		t.Errorf("DebitBalance calls: got %d, want 2 (estimate + reconcile)", f.payee.DebitBalanceCalls)
+	}
+	if f.payee.CloseSessionCalls != 1 {
+		t.Errorf("CloseSession calls: got %d, want 1", f.payee.CloseSessionCalls)
 	}
 	// Final debit should be the delta = 25 - 10 = 15.
 	if f.payee.LastDebitBalanceWorkUnits != 15 {
@@ -290,6 +338,9 @@ func TestPaymentMiddleware_NoReconcileWhenActualLessThanEstimate(t *testing.T) {
 	}
 	if f.payee.DebitBalanceCalls != 1 {
 		t.Errorf("DebitBalance calls: got %d, want 1 (no credit-back in v1)", f.payee.DebitBalanceCalls)
+	}
+	if f.payee.CloseSessionCalls != 1 {
+		t.Errorf("CloseSession calls: got %d, want 1", f.payee.CloseSessionCalls)
 	}
 }
 

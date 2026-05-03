@@ -4,10 +4,11 @@
 // generated proto types — service-layer code speaks the domain types
 // defined here, never paymentsv1.* directly.
 //
-// The package exposes a small Client interface covering the three RPCs
-// the worker actually uses (ProcessPayment, DebitBalance,
-// ListCapabilities) plus a Close() for lifecycle, and returns domain
-// types from this package rather than proto types.
+// The package exposes a small Client interface covering the payee RPCs
+// the worker actually uses (OpenSession, ProcessPayment, DebitBalance,
+// CloseSession, ListCapabilities, and the ticket-params helper
+// endpoints) plus a Close() for lifecycle, and returns domain types
+// from this package rather than proto types.
 //
 // This isolation is what lets us:
 //   - Unit-test middleware and modules against a fake Client without

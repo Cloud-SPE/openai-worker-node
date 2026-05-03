@@ -16,9 +16,9 @@ const CurrentAPIVersion = 1
 
 // Config is the worker's projection of worker.yaml.
 //
-// In v3.0.1 worker.yaml is shared between the worker and receiver-mode
-// payment daemon. The worker owns the top-level worker-facing fields,
-// captures payment_daemon opaquely, and flattens capabilities into a
+// worker.yaml is shared between the worker and receiver-mode payment
+// daemon. The worker owns the top-level worker-facing fields, captures
+// payment_daemon opaquely, and flattens capabilities into a
 // (CapabilityID, ModelID) -> ModelRoute map for O(1) routing in the
 // middleware.
 type Config struct {

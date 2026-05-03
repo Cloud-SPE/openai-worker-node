@@ -69,6 +69,23 @@ func (c *grpcClient) ListCapabilities(ctx context.Context) (ListCapabilitiesResu
 	}, nil
 }
 
+func (c *grpcClient) OpenSession(ctx context.Context, req OpenSessionRequest) (OpenSessionResult, error) {
+	resp, err := c.client.OpenSession(ctx, &paymentsv1.OpenSessionRequest{
+		WorkId:              req.WorkID,
+		Capability:          req.Capability,
+		Offering:            req.Offering,
+		PricePerWorkUnitWei: req.PricePerWorkUnitWei.Bytes(),
+		WorkUnit:            req.WorkUnit,
+	})
+	if err != nil {
+		return OpenSessionResult{}, fmt.Errorf("payeedaemon: OpenSession: %w", err)
+	}
+	return OpenSessionResult{
+		Opened:      resp.GetOutcome() == paymentsv1.OpenSessionResponse_OUTCOME_OPENED,
+		AlreadyOpen: resp.GetOutcome() == paymentsv1.OpenSessionResponse_OUTCOME_ALREADY_OPEN,
+	}, nil
+}
+
 func (c *grpcClient) ProcessPayment(ctx context.Context, paymentBytes []byte, workID string) (ProcessPaymentResult, error) {
 	resp, err := c.client.ProcessPayment(ctx, &paymentsv1.ProcessPaymentRequest{
 		PaymentBytes: paymentBytes,
@@ -159,6 +176,16 @@ func (c *grpcClient) DebitBalance(ctx context.Context, sender []byte, workID str
 	return DebitBalanceResult{
 		BalanceWei: new(big.Int).SetBytes(resp.GetBalance()),
 	}, nil
+}
+
+func (c *grpcClient) CloseSession(ctx context.Context, sender []byte, workID string) (CloseSessionResult, error) {
+	if _, err := c.client.CloseSession(ctx, &paymentsv1.PayeeDaemonCloseSessionRequest{
+		Sender: sender,
+		WorkId: workID,
+	}); err != nil {
+		return CloseSessionResult{}, fmt.Errorf("payeedaemon: CloseSession: %w", err)
+	}
+	return CloseSessionResult{Closed: true}, nil
 }
 
 // priceInfoToWeiString converts a paymentsv1.PriceInfo (int64

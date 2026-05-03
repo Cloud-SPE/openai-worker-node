@@ -121,8 +121,10 @@ const (
 	UnitImageStepMegapixel = "image_step_megapixel"
 
 	// method — daemon RPC
+	MethodOpenSession      = "OpenSession"
 	MethodProcessPayment   = "ProcessPayment"
 	MethodDebitBalance     = "DebitBalance"
+	MethodCloseSession     = "CloseSession"
 	MethodGetQuote         = "GetQuote"
 	MethodGetTicketParams  = "GetTicketParams"
 	MethodListCapabilities = "ListCapabilities"

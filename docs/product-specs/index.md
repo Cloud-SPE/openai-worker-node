@@ -65,10 +65,12 @@ Methods used:
 | RPC                  | When called                                                                                                              |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `ListCapabilities`   | Once at startup for the worker/daemon catalog cross-check.                                                 |
-| `GetQuote`           | Not used by the v3.0.1 worker HTTP surface. Retained only in the provider layer for daemon compatibility. |
+| `GetQuote`           | Not used by the current worker HTTP surface. Retained only in the provider layer for daemon compatibility. |
 | `GetTicketParams`    | On `POST /v1/payment/ticket-params`; returns canonical payee-issued ticket params for sender-side ticket minting. |
-| `ProcessPayment`     | Every paid request.                                                                                                      |
+| `OpenSession`        | Every paid request, before `ProcessPayment`, to bind payee-side pricing metadata to `work_id`. |
+| `ProcessPayment`     | Every paid request, after `OpenSession`.                                                                                                      |
 | `DebitBalance`       | Every paid request (up-front + reconcile).                                                                               |
+| `CloseSession`       | Every paid request after payment processing completes; pending sessions created before a rejected `ProcessPayment` cannot be explicitly closed by the current daemon API. |
 
 ## Error contract
 
