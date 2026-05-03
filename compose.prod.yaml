@@ -55,7 +55,7 @@ services:
       - no-new-privileges:true
 
   openai-worker:
-    image: tztcloud/livepeer-openai-worker-node:${WORKER_IMAGE_TAG:-v3.0.1}
+    image: tztcloud/livepeer-openai-worker-node:${WORKER_IMAGE_TAG:-4.0.1}
     restart: unless-stopped
     depends_on:
       - payment-daemon
